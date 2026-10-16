@@ -1,0 +1,886 @@
+[
+  {
+    "purpose": "dated historical illustration; not current actionable prices",
+    "source": "paradise_drummond_candidate",
+    "symbol": "MNQ 12-26",
+    "timeframe": "1Day",
+    "trading_hours": "CME US Index Futures ETH",
+    "session_timezone": "Central Standard Time",
+    "historical_feed": "unresolved",
+    "captured_at_utc": "2026-09-23T10:27:00.9813398+00:00",
+    "capture_id": "4074ba563520446b9946537365318677",
+    "captured_chart_displacement_bars": 0,
+    "source_ohlc": [
+      {
+        "index": 254,
+        "open": "29495.75",
+        "high": "29495.75",
+        "low": "29208.75",
+        "close": "29246.75",
+        "bar_time_local": "2026-09-15T00:00:00.0000000"
+      },
+      {
+        "index": 255,
+        "open": "29268.5",
+        "high": "29552.5",
+        "low": "29052.75",
+        "close": "29256.75",
+        "bar_time_local": "2026-09-16T00:00:00.0000000"
+      },
+      {
+        "index": 256,
+        "open": "29270.25",
+        "high": "29793.25",
+        "low": "29247.5",
+        "close": "29743",
+        "bar_time_local": "2026-09-17T00:00:00.0000000"
+      },
+      {
+        "index": 257,
+        "open": "29723.5",
+        "high": "29993.5",
+        "low": "29647.5",
+        "close": "29917.25",
+        "bar_time_local": "2026-09-18T00:00:00.0000000"
+      },
+      {
+        "index": 258,
+        "open": "29938.25",
+        "high": "30863",
+        "low": "29903.5",
+        "close": "30784.75",
+        "bar_time_local": "2026-09-21T00:00:00.0000000"
+      }
+    ],
+    "calculation": {
+      "hypothesis_version": "public-output-hypotheses-20260923-v1",
+      "production_eligible": false,
+      "display_index": 259,
+      "display_bar_time": "2026-09-22T00:00:00.0000000",
+      "source_index": 258,
+      "source_bar_time": "2026-09-21T00:00:00.0000000",
+      "display_displacement_bars": 1,
+      "source_state": "completed",
+      "levels": {
+        "Zone Six Top": {
+          "state": "active",
+          "value": "30993.86111111111111111111111111111",
+          "display_value": "30993.86"
+        },
+        "Zone Five Top": {
+          "state": "active",
+          "value": "30765.41666666666666666666666666667",
+          "display_value": "30765.42"
+        },
+        "Envelope Top": {
+          "state": "active",
+          "value": "30376.77777777777777777777777777778",
+          "display_value": "30376.78"
+        },
+        "PLDot": {
+          "state": "active",
+          "value": "29988.13888888888888888888888888889",
+          "display_value": "29988.14"
+        },
+        "Envelope Bottom": {
+          "state": "active",
+          "value": "29759.69444444444444444444444444445",
+          "display_value": "29759.69"
+        },
+        "Zone Two Bottom": {
+          "state": "active",
+          "value": "29531.25000000000000000000000000001",
+          "display_value": "29531.25"
+        },
+        "Zone One Bottom": {
+          "state": "active",
+          "value": "29142.61111111111111111111111111112",
+          "display_value": "29142.61"
+        },
+        "H 1-1": {
+          "state": "active",
+          "value": "31130.66666666666666666666666666666",
+          "display_value": "31130.67"
+        },
+        "L 1-1": {
+          "state": "active",
+          "value": "30171.16666666666666666666666666666",
+          "display_value": "30171.17"
+        },
+        "1-1 Dot": {
+          "state": "active",
+          "value": "30517.08333333333333333333333333333",
+          "display_value": "30517.08"
+        },
+        "Main Channel": {
+          "state": "active",
+          "value": "29756.77777777777777777777777777777",
+          "display_value": "29756.78"
+        },
+        "5-1 Sell": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "5-1 Buy": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "5-2 Sell": {
+          "state": "active",
+          "value": "31732.5",
+          "display_value": "31732.50"
+        },
+        "5-2 Buy": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "5-2 Ex Sell": {
+          "state": "active",
+          "value": "32602.0",
+          "display_value": "32602.00"
+        },
+        "5-2 Ex Buy": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "5-3 Sell": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "5-3 Buy": {
+          "state": "active",
+          "value": "30159.5",
+          "display_value": "30159.50"
+        },
+        "5-9 Sell": {
+          "state": "active",
+          "value": "32078.5",
+          "display_value": "32078.50"
+        },
+        "5-9 Buy": {
+          "state": "active",
+          "value": "29813.5",
+          "display_value": "29813.50"
+        },
+        "5-9 Ex Sell": {
+          "state": "active",
+          "value": "33294.0",
+          "display_value": "33294.00"
+        },
+        "5-9 Ex Buy": {
+          "state": "active",
+          "value": "29723.5",
+          "display_value": "29723.50"
+        },
+        "6-1 Sell": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "6-1 Buy": {
+          "state": "active",
+          "value": "29113.27777777777777777777777777778",
+          "display_value": "29113.28"
+        },
+        "6-5 Sell": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "6-5 Buy": {
+          "state": "active",
+          "value": "30072.77777777777777777777777777778",
+          "display_value": "30072.78"
+        },
+        "6-6 Sell": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "6-6 Buy": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "6-7 Sell": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "6-7 Buy": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        }
+      }
+    }
+  },
+  {
+    "purpose": "dated historical illustration; not current actionable prices",
+    "source": "paradise_drummond_candidate",
+    "symbol": "QQQ",
+    "timeframe": "1Day",
+    "trading_hours": "US Equities RTH",
+    "session_timezone": "Eastern Standard Time",
+    "historical_feed": "unresolved",
+    "captured_at_utc": "2026-09-23T10:41:19.8541392+00:00",
+    "capture_id": "c137807ce33941c68b4041437212a1f8",
+    "captured_chart_displacement_bars": 1,
+    "source_ohlc": [
+      {
+        "index": 244,
+        "open": "703.33",
+        "high": "712.95",
+        "low": "702.74",
+        "close": "709.18",
+        "bar_time_local": "2026-09-14T00:00:00.0000000"
+      },
+      {
+        "index": 245,
+        "open": "708.8",
+        "high": "709.53",
+        "low": "703.64",
+        "close": "704.54",
+        "bar_time_local": "2026-09-15T00:00:00.0000000"
+      },
+      {
+        "index": 246,
+        "open": "708",
+        "high": "711.88",
+        "low": "700",
+        "close": "704.72",
+        "bar_time_local": "2026-09-16T00:00:00.0000000"
+      },
+      {
+        "index": 247,
+        "open": "715.95",
+        "high": "718.04",
+        "low": "713.32",
+        "close": "716.92",
+        "bar_time_local": "2026-09-17T00:00:00.0000000"
+      },
+      {
+        "index": 248,
+        "open": "718.83",
+        "high": "721.73",
+        "low": "715.08",
+        "close": "721.45",
+        "bar_time_local": "2026-09-18T00:00:00.0000000"
+      }
+    ],
+    "calculation": {
+      "hypothesis_version": "public-output-hypotheses-20260923-v1",
+      "production_eligible": false,
+      "display_index": 249,
+      "display_bar_time": "2026-09-21T00:00:00.0000000",
+      "source_index": 248,
+      "source_bar_time": "2026-09-18T00:00:00.0000000",
+      "display_displacement_bars": 1,
+      "source_state": "completed",
+      "levels": {
+        "Zone Six Top": {
+          "state": "active",
+          "value": "725.6477777777777777777777777777777",
+          "display_value": "725.65"
+        },
+        "Zone Five Top": {
+          "state": "active",
+          "value": "722.1133333333333333333333333333328",
+          "display_value": "722.11"
+        },
+        "Envelope Top": {
+          "state": "active",
+          "value": "717.8977777777777777777777777777773",
+          "display_value": "717.90"
+        },
+        "PLDot": {
+          "state": "active",
+          "value": "713.6822222222222222222222222222222",
+          "display_value": "713.68"
+        },
+        "Envelope Bottom": {
+          "state": "active",
+          "value": "710.1477777777777777777777777777773",
+          "display_value": "710.15"
+        },
+        "Zone Two Bottom": {
+          "state": "active",
+          "value": "706.6133333333333333333333333333328",
+          "display_value": "706.61"
+        },
+        "Zone One Bottom": {
+          "state": "active",
+          "value": "702.3977777777777777777777777777777",
+          "display_value": "702.40"
+        },
+        "H 1-1": {
+          "state": "active",
+          "value": "723.76",
+          "display_value": "723.76"
+        },
+        "L 1-1": {
+          "state": "active",
+          "value": "717.11",
+          "display_value": "717.11"
+        },
+        "1-1 Dot": {
+          "state": "active",
+          "value": "719.42",
+          "display_value": "719.42"
+        },
+        "Main Channel": {
+          "state": "active",
+          "value": "711.7777777777777777777777777777774",
+          "display_value": "711.78"
+        },
+        "5-1 Sell": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "5-1 Buy": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "5-2 Sell": {
+          "state": "active",
+          "value": "725.42",
+          "display_value": "725.42"
+        },
+        "5-2 Buy": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "5-2 Ex Sell": {
+          "state": "active",
+          "value": "729.11",
+          "display_value": "729.11"
+        },
+        "5-2 Ex Buy": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "5-3 Sell": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "5-3 Buy": {
+          "state": "active",
+          "value": "716.84",
+          "display_value": "716.84"
+        },
+        "5-9 Sell": {
+          "state": "active",
+          "value": "730.14",
+          "display_value": "730.14"
+        },
+        "5-9 Buy": {
+          "state": "active",
+          "value": "712.12",
+          "display_value": "712.12"
+        },
+        "5-9 Ex Sell": {
+          "state": "active",
+          "value": "738.55",
+          "display_value": "738.55"
+        },
+        "5-9 Ex Buy": {
+          "state": "active",
+          "value": "709.16",
+          "display_value": "709.16"
+        },
+        "6-1 Sell": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "6-1 Buy": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "6-5 Sell": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "6-5 Buy": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "6-6 Sell": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "6-6 Buy": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "6-7 Sell": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "6-7 Buy": {
+          "state": "active",
+          "value": "705.634444444444444444444444444444",
+          "display_value": "705.63"
+        }
+      }
+    }
+  },
+  {
+    "purpose": "dated historical illustration; not current actionable prices",
+    "source": "paradise_drummond_candidate",
+    "symbol": "QQQ",
+    "timeframe": "1Week",
+    "trading_hours": "US Equities RTH",
+    "session_timezone": "Eastern Standard Time",
+    "historical_feed": "unresolved",
+    "captured_at_utc": "2026-09-23T10:40:09.2511122+00:00",
+    "capture_id": "a6fbac399fea4cc18801dcb91f02afb6",
+    "captured_chart_displacement_bars": 1,
+    "source_ohlc": [
+      {
+        "index": 255,
+        "open": "722.39",
+        "high": "734.39",
+        "low": "715.5",
+        "close": "731.07",
+        "bar_time_local": "2026-08-14T00:00:00.0000000"
+      },
+      {
+        "index": 256,
+        "open": "732.95",
+        "high": "734.58",
+        "low": "708.52",
+        "close": "713.44",
+        "bar_time_local": "2026-08-21T00:00:00.0000000"
+      },
+      {
+        "index": 257,
+        "open": "709.66",
+        "high": "724.13",
+        "low": "702.7",
+        "close": "716.43",
+        "bar_time_local": "2026-08-28T00:00:00.0000000"
+      },
+      {
+        "index": 258,
+        "open": "715.17",
+        "high": "721.86",
+        "low": "704.66",
+        "close": "718.96",
+        "bar_time_local": "2026-09-04T00:00:00.0000000"
+      },
+      {
+        "index": 259,
+        "open": "720.91",
+        "high": "721.89",
+        "low": "706.86",
+        "close": "714.88",
+        "bar_time_local": "2026-09-11T00:00:00.0000000"
+      }
+    ],
+    "calculation": {
+      "hypothesis_version": "public-output-hypotheses-20260923-v1",
+      "production_eligible": false,
+      "display_index": 260,
+      "display_bar_time": "2026-09-18T00:00:00.0000000",
+      "source_index": 259,
+      "source_bar_time": "2026-09-11T00:00:00.0000000",
+      "display_displacement_bars": 1,
+      "source_state": "completed",
+      "levels": {
+        "Zone Six Top": {
+          "state": "active",
+          "value": "742.5622222222222222222222222222227",
+          "display_value": "742.56"
+        },
+        "Zone Five Top": {
+          "state": "active",
+          "value": "734.6433333333333333333333333333342",
+          "display_value": "734.64"
+        },
+        "Envelope Top": {
+          "state": "active",
+          "value": "724.675555555555555555555555555556",
+          "display_value": "724.68"
+        },
+        "PLDot": {
+          "state": "active",
+          "value": "714.7077777777777777777777777777778",
+          "display_value": "714.71"
+        },
+        "Envelope Bottom": {
+          "state": "active",
+          "value": "706.7888888888888888888888888888893",
+          "display_value": "706.79"
+        },
+        "Zone Two Bottom": {
+          "state": "active",
+          "value": "698.8700000000000000000000000000012",
+          "display_value": "698.87"
+        },
+        "Zone One Bottom": {
+          "state": "active",
+          "value": "688.902222222222222222222222222223",
+          "display_value": "688.90"
+        },
+        "H 1-1": {
+          "state": "active",
+          "value": "722.226666666666666666666666666667",
+          "display_value": "722.23"
+        },
+        "L 1-1": {
+          "state": "active",
+          "value": "707.196666666666666666666666666667",
+          "display_value": "707.20"
+        },
+        "1-1 Dot": {
+          "state": "active",
+          "value": "714.5433333333333333333333333333333",
+          "display_value": "714.54"
+        },
+        "Main Channel": {
+          "state": "active",
+          "value": "712.1999999999999999999999999999996",
+          "display_value": "712.20"
+        },
+        "5-1 Sell": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "5-1 Buy": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "5-2 Sell": {
+          "state": "active",
+          "value": "721.92",
+          "display_value": "721.92"
+        },
+        "5-2 Buy": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "5-2 Ex Sell": {
+          "state": "active",
+          "value": "721.95",
+          "display_value": "721.95"
+        },
+        "5-2 Ex Buy": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "5-3 Sell": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "5-3 Buy": {
+          "state": "active",
+          "value": "709.06",
+          "display_value": "709.06"
+        },
+        "5-9 Sell": {
+          "state": "active",
+          "value": "739.12",
+          "display_value": "739.12"
+        },
+        "5-9 Buy": {
+          "state": "active",
+          "value": "691.86",
+          "display_value": "691.86"
+        },
+        "5-9 Ex Sell": {
+          "state": "active",
+          "value": "756.35",
+          "display_value": "756.35"
+        },
+        "5-9 Ex Buy": {
+          "state": "active",
+          "value": "676.86",
+          "display_value": "676.86"
+        },
+        "6-1 Sell": {
+          "state": "active",
+          "value": "722.555555555555555555555555555556",
+          "display_value": "722.56"
+        },
+        "6-1 Buy": {
+          "state": "active",
+          "value": "707.525555555555555555555555555556",
+          "display_value": "707.53"
+        },
+        "6-5 Sell": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "6-5 Buy": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "6-6 Sell": {
+          "state": "active",
+          "value": "725.501111111111111111111111111111",
+          "display_value": "725.50"
+        },
+        "6-6 Buy": {
+          "state": "active",
+          "value": "680.411111111111111111111111111111",
+          "display_value": "680.41"
+        },
+        "6-7 Sell": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "6-7 Buy": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        }
+      }
+    }
+  },
+  {
+    "purpose": "dated historical illustration; not current actionable prices",
+    "source": "paradise_drummond_candidate",
+    "symbol": "QQQ",
+    "timeframe": "1Month",
+    "trading_hours": "US Equities RTH",
+    "session_timezone": "Eastern Standard Time",
+    "historical_feed": "unresolved",
+    "captured_at_utc": "2026-09-23T10:38:57.9201938+00:00",
+    "capture_id": "0ffdce94d99649059085d81491dcf9e4",
+    "captured_chart_displacement_bars": 1,
+    "source_ohlc": [
+      {
+        "index": 174,
+        "open": "598.86",
+        "high": "613.29",
+        "low": "555.6",
+        "close": "577.18",
+        "bar_time_local": "2026-03-31T00:00:00.0000000"
+      },
+      {
+        "index": 175,
+        "open": "581.48",
+        "high": "668.9",
+        "low": "571.92",
+        "close": "667.74",
+        "bar_time_local": "2026-04-30T00:00:00.0000000"
+      },
+      {
+        "index": 176,
+        "open": "669.16",
+        "high": "741.63",
+        "low": "668.8",
+        "close": "738.31",
+        "bar_time_local": "2026-05-31T00:00:00.0000000"
+      },
+      {
+        "index": 177,
+        "open": "737.04",
+        "high": "748.65",
+        "low": "686.37",
+        "close": "736.4",
+        "bar_time_local": "2026-06-30T00:00:00.0000000"
+      },
+      {
+        "index": 178,
+        "open": "729.19",
+        "high": "731.92",
+        "low": "661.14",
+        "close": "687.99",
+        "bar_time_local": "2026-07-31T00:00:00.0000000"
+      }
+    ],
+    "calculation": {
+      "hypothesis_version": "public-output-hypotheses-20260923-v1",
+      "production_eligible": false,
+      "display_index": 179,
+      "display_bar_time": "2026-08-31T00:00:00.0000000",
+      "source_index": 178,
+      "source_bar_time": "2026-07-31T00:00:00.0000000",
+      "display_displacement_bars": 1,
+      "source_state": "completed",
+      "levels": {
+        "Zone Six Top": {
+          "state": "active",
+          "value": "819.0177777777777777777777777777773",
+          "display_value": "819.02"
+        },
+        "Zone Five Top": {
+          "state": "active",
+          "value": "789.5299999999999999999999999999994",
+          "display_value": "789.53"
+        },
+        "Envelope Top": {
+          "state": "active",
+          "value": "750.3877777777777777777777777777777",
+          "display_value": "750.39"
+        },
+        "PLDot": {
+          "state": "active",
+          "value": "711.2455555555555555555555555555556",
+          "display_value": "711.25"
+        },
+        "Envelope Bottom": {
+          "state": "active",
+          "value": "681.7577777777777777777777777777777",
+          "display_value": "681.76"
+        },
+        "Zone Two Bottom": {
+          "state": "active",
+          "value": "652.2699999999999999999999999999994",
+          "display_value": "652.27"
+        },
+        "Zone One Bottom": {
+          "state": "active",
+          "value": "613.1277777777777777777777777777773",
+          "display_value": "613.13"
+        },
+        "H 1-1": {
+          "state": "active",
+          "value": "726.226666666666666666666666666667",
+          "display_value": "726.23"
+        },
+        "L 1-1": {
+          "state": "active",
+          "value": "655.446666666666666666666666666667",
+          "display_value": "655.45"
+        },
+        "1-1 Dot": {
+          "state": "active",
+          "value": "693.6833333333333333333333333333333",
+          "display_value": "693.68"
+        },
+        "Main Channel": {
+          "state": "active",
+          "value": "739.3411111111111111111111111111111",
+          "display_value": "739.34"
+        },
+        "5-1 Sell": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "5-1 Buy": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "5-2 Sell": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "5-2 Buy": {
+          "state": "active",
+          "value": "635.91",
+          "display_value": "635.91"
+        },
+        "5-2 Ex Sell": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "5-2 Ex Buy": {
+          "state": "active",
+          "value": "610.68",
+          "display_value": "610.68"
+        },
+        "5-3 Sell": {
+          "state": "active",
+          "value": "715.19",
+          "display_value": "715.19"
+        },
+        "5-3 Buy": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "5-9 Sell": {
+          "state": "active",
+          "value": "777.47",
+          "display_value": "777.47"
+        },
+        "5-9 Buy": {
+          "state": "active",
+          "value": "573.63",
+          "display_value": "573.63"
+        },
+        "5-9 Ex Sell": {
+          "state": "active",
+          "value": "823.02",
+          "display_value": "823.02"
+        },
+        "5-9 Ex Buy": {
+          "state": "active",
+          "value": "486.12",
+          "display_value": "486.12"
+        },
+        "6-1 Sell": {
+          "state": "active",
+          "value": "761.351111111111111111111111111111",
+          "display_value": "761.35"
+        },
+        "6-1 Buy": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "6-5 Sell": {
+          "state": "active",
+          "value": "690.571111111111111111111111111111",
+          "display_value": "690.57"
+        },
+        "6-5 Buy": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "6-6 Sell": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "6-6 Buy": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "6-7 Sell": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        },
+        "6-7 Buy": {
+          "state": "inactive",
+          "value": null,
+          "display_value": null
+        }
+      }
+    }
+  }
+]

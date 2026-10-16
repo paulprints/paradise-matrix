@@ -1,0 +1,56 @@
+import type { LevelsRequest, LevelsResponse, LoginResponse, User } from '@paradise/contract';
+
+const BASE = `${import.meta.env.VITE_API_URL ?? ''}/api`;
+const TOKEN_KEY = 'pp_token';
+
+export const tokenStore = {
+  get: (): string | null => { try { return localStorage.getItem(TOKEN_KEY); } catch { return null; } },
+  set: (t: string) => { try { localStorage.setItem(TOKEN_KEY, t); } catch { /* private mode */ } },
+  clear: () => { try { localStorage.removeItem(TOKEN_KEY); } catch { /* ignore */ } },
+};
+
+export class ApiError extends Error {
+  constructor(readonly status: number, message: string, readonly details?: unknown) { super(message); }
+}
+
+/** Fired when the server rejects the session; the app returns to sign-in. */
+export const SESSION_EXPIRED = 'pp:session-expired';
+
+async function request<T>(method: string, path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
+  const token = tokenStore.get();
+  let res: Response;
+  try {
+    res = await fetch(BASE + path, {
+      method, signal,
+      headers: { ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}), ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    });
+  } catch (e) {
+    if ((e as Error).name === 'AbortError') throw e;
+    throw new ApiError(0, 'Can’t reach the server. Check your connection and try again.');
+  }
+  if (res.status === 401 && path !== '/auth/login') {
+    tokenStore.clear();
+    window.dispatchEvent(new Event(SESSION_EXPIRED));
+  }
+  if (res.status === 204) return undefined as T;
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new ApiError(res.status, data.error ?? `Request failed (${res.status})`, data.details);
+  return data as T;
+}
+
+export const api = {
+  async login(username: string, password: string): Promise<User> {
+    const r = await request<LoginResponse>('POST', '/auth/login', { username, password });
+    tokenStore.set(r.token);
+    return r.user;
+  },
+  me: () => request<{ user: User }>('GET', '/auth/me').then((r) => r.user),
+  logout: () => tokenStore.clear(),
+  levels: (req: LevelsRequest, signal?: AbortSignal) => request<LevelsResponse>('POST', '/levels', req, signal),
+  users: () => request<{ users: Array<User & { createdAt: string }> }>('GET', '/admin/users').then((r) => r.users),
+  createUser: (username: string, password: string, isAdmin: boolean) => request<{ user: User }>('POST', '/admin/users', { username, password, isAdmin }),
+  updateUser: (id: number, patch: { password?: string; isAdmin?: boolean }) => request<{ user: User }>('PATCH', `/admin/users/${id}`, patch),
+  deleteUser: (id: number) => request<void>('DELETE', `/admin/users/${id}`),
+  loginHistory: (limit = 50) => request<{ entries: Array<Record<string, any>> }>('GET', `/admin/login-history?limit=${limit}`).then((r) => r.entries),
+};

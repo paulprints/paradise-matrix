@@ -1,0 +1,181 @@
+/**
+ * Orchestrates one /api/levels request: resolve instrument → fetch one
+ * provider's bars for every needed timeframe → normalise against the exchange
+ * calendar → engine frames → public levels with provenance.
+ */
+import type { Frame, Level, LevelsRequest, LevelsResponse, Timeframe } from '@paradise/contract';
+import { buildFrame, computeProfile, defaultRowSize, ENGINE_VERSION, PROFILE_VERSION, type EngineLevel } from '@paradise/engine';
+import { COMPLETION_GRACE_S, confirmedIndexAt, displayRef, normalizeBars, type Bar } from './data/bars.ts';
+import { calendarCovers, nextPeriodKey, periodBounds, periodKeyOf, periodLabel, type ExchangeCalendar } from './data/calendar.ts';
+import { resolveInstrument, type ResolvedInstrument } from './data/instruments.ts';
+import type { Market } from './data/market.ts';
+import { iso } from './data/time.ts';
+import { LOCATION_LABELS, publicName } from './labels.ts';
+
+const ORDER: Timeframe[] = ['M', 'W', 'D', '1H', '30m', '15m'];
+const ANCHOR_LIMIT = 150;
+
+export class RequestError extends Error {}
+
+export interface LevelsDeps { market: Market; now?: () => number }
+
+export async function computeLevels(req: LevelsRequest, deps: LevelsDeps): Promise<LevelsResponse> {
+  const now = Math.floor((deps.now ?? (() => Date.now() / 1000))());
+  const inst = resolveInstrument(req.symbol);
+  const tfs = ORDER.filter((tf) => req.timeframes.includes(tf));
+  if (!tfs.length) throw new RequestError('at least one timeframe is required');
+  const displacement = req.displacement ?? 1;
+  const asOf = req.asOf ? Math.floor(Date.parse(req.asOf) / 1000) : null;
+  if (asOf !== null && !Number.isFinite(asOf)) throw new RequestError('asOf must be an ISO-8601 instant');
+  if (asOf !== null && asOf > now) throw new RequestError('asOf cannot be in the future');
+  const live = asOf === null;
+  const wantDeveloping = live && !!req.developing;
+  const profileTfs = req.profile ? tfs.filter((tf): tf is 'D' | 'W' | 'M' => tf === 'D' || tf === 'W' || tf === 'M') : [];
+  const fetchTfs = profileTfs.length && !tfs.includes('30m') ? [...tfs, '30m' as const] : tfs;
+
+  const set = await deps.market.fetchSet(inst.symbol, fetchTfs);
+  const warnings: string[] = [];
+  if (inst.calendarFidelity === 'approximate') warnings.push(`${inst.calendar} calendar is approximate: session-specific early closes are not modelled`);
+  if (!calendarCovers(inst.cal, asOf ?? now)) warnings.push(`holiday table covers ${inst.cal.coveredYears.join('–')}; weekday rules only beyond it`);
+
+  const barsByTf = new Map<Timeframe, Bar[]>();
+  const normWarnings = new Map<Timeframe, string[]>();
+  for (const tf of fetchTfs) {
+    const n = normalizeBars(set.rows.get(tf) ?? [], tf, inst.cal, now);
+    // As-of: bars that had not started yet are unknowable at that instant.
+    barsByTf.set(tf, asOf === null ? n.bars : n.bars.filter((b) => b.t < asOf));
+    normWarnings.set(tf, n.warnings);
+  }
+
+  const finest = tfs[tfs.length - 1]!;
+  const finestBars = barsByTf.get(finest)!;
+  const finestConfirmed = confirmedIndexAt(finestBars, asOf);
+  const lastBar = live ? finestBars[finestBars.length - 1] : finestBars[finestConfirmed];
+  const lastPrice = lastBar ? { price: lastBar.c, time: iso(live ? Math.min(now, lastBar.end) : lastBar.end) } : null;
+
+  const frames: Frame[] = [];
+  const levels: Level[] = [];
+  for (const tf of tfs) {
+    const bars = barsByTf.get(tf)!;
+    const confirmedIndex = confirmedIndexAt(bars, asOf);
+    const last = bars.length - 1;
+    const developingIndex = wantDeveloping && last > confirmedIndex && !bars[last]!.complete ? last : null;
+    const f = buildFrame({ bars, displacement, confirmedIndex, developingIndex, lastPrice: lastPrice?.price ?? null });
+    const ref = (i: number | null) => (i === null ? null : { time: iso(bars[i]!.t), label: bars[i]!.label });
+    const disp = (i: number | null) => {
+      const d = i === null ? null : displayRef(bars, i, tf, inst.cal);
+      return { time: d ? iso(d.time) : null, label: d?.label ?? null };
+    };
+    frames.push({
+      tf,
+      source: ref(f.sourceIndex),
+      display: disp(f.displayIndex),
+      developingSource: ref(f.developingIndex),
+      atr: f.atr,
+      facts: {
+        location: f.facts.locationBand === null ? null : { band: f.facts.locationBand, label: LOCATION_LABELS[f.facts.locationBand]! },
+        pivotDirection: f.facts.pivotDirection,
+        closesVsPivot: f.facts.closesVsPivot,
+      },
+      barCount: bars.length,
+      warnings: [...(normWarnings.get(tf) ?? []), ...f.warnings],
+    });
+    for (const l of f.levels) levels.push(toPublic(l, tf, bars, inst));
+
+    if (profileTfs.includes(tf as 'D')) {
+      const p = profileLevels(tf as 'D' | 'W' | 'M', barsByTf.get('30m')!, inst, asOf ?? now, wantDeveloping, lastPrice?.price ?? null);
+      levels.push(...p.levels);
+      frames[frames.length - 1]!.warnings.push(...p.warnings);
+    }
+  }
+
+  const anchors = finestBars
+    .slice(0, finestConfirmed + 1)
+    .slice(-ANCHOR_LIMIT)
+    .reverse()
+    .map((b) => ({ time: iso(b.t), label: b.label, end: iso(b.end + COMPLETION_GRACE_S) }));
+
+  return {
+    instrument: {
+      symbol: inst.symbol, root: inst.root, kind: inst.kind, tick: inst.tick, calendar: inst.calendar,
+      calendarFidelity: inst.calendarFidelity, timezone: inst.timezone, session: inst.session, adjustment: inst.adjustment,
+    },
+    asOf: asOf === null ? null : iso(asOf),
+    generatedAt: iso(now),
+    dataSource: set.provider,
+    engineVersion: profileTfs.length ? `${ENGINE_VERSION}+${PROFILE_VERSION}` : ENGINE_VERSION,
+    lastPrice,
+    frames,
+    levels,
+    anchors,
+    warnings,
+  };
+}
+
+function toPublic(l: EngineLevel, tf: Timeframe, bars: Bar[], inst: ResolvedInstrument): Level {
+  const n = publicName(l.plot);
+  const src = bars[l.sourceIndex]!;
+  const d = displayRef(bars, l.displayIndex, tf, inst.cal);
+  return {
+    id: `${tf}:${l.basis}:${n.slug}`,
+    slug: n.slug, label: n.label, group: n.group, family: n.family,
+    ...(l.side ? { side: l.side } : {}),
+    tf, state: l.state, price: l.price, basis: l.basis,
+    source: { time: iso(src.t), label: src.label, complete: l.basis === 'confirmed' },
+    display: { time: d ? iso(d.time) : null, label: d?.label ?? null },
+    displacement: l.displacement,
+    provenance: l.provenance,
+  };
+}
+
+/**
+ * Market Profile for the last completed D/W/M period (applies to the next
+ * period, i.e. displacement 1), plus the current period's developing profile.
+ */
+export function profileLevels(
+  tf: 'D' | 'W' | 'M', intraday: readonly Bar[], inst: ResolvedInstrument, ref: number, developing: boolean, price: number | null,
+): { levels: Level[]; warnings: string[] } {
+  const warnings: string[] = [];
+  const cal: ExchangeCalendar = inst.cal;
+  if (!intraday.length || price === null) return { levels: [], warnings: ['no intraday bars for profile'] };
+  const groups = new Map<string, Bar[]>();
+  for (const b of intraday) {
+    const k = periodKeyOf(cal, tf, b.t);
+    (groups.get(k) ?? groups.set(k, []).get(k)!).push(b);
+  }
+  const rowSize = defaultRowSize(price, inst.tick);
+  const keys = [...groups.keys()].sort();
+  const completed = keys.filter((k) => { const b = periodBounds(cal, tf, k); return b && b.end + COMPLETION_GRACE_S <= ref; });
+  const out: Level[] = [];
+
+  const emit = (key: string, basis: 'confirmed' | 'developing') => {
+    const bounds = periodBounds(cal, tf, key)!;
+    const bars = groups.get(key)!;
+    if (bars[0]!.t > bounds.start + 3600) {
+      warnings.push(`${tf} profile ${key}: intraday history starts mid-period; skipped`);
+      return;
+    }
+    const prof = computeProfile(bars, rowSize);
+    if (!prof) return;
+    const nextKey = nextPeriodKey(cal, tf, key);
+    const nb = periodBounds(cal, tf, nextKey);
+    for (const [plot, value] of [['VAH', prof.vah], ['POC', prof.poc], ['VAL', prof.val]] as const) {
+      const n = publicName(plot);
+      out.push({
+        id: `${tf}:${basis}:${n.slug}`, slug: n.slug, label: n.label, group: n.group, family: n.family,
+        tf, state: 'active', price: value, basis,
+        source: { time: iso(bounds.start), label: periodLabel(tf, key, cal, bounds.start), complete: basis === 'confirmed' },
+        display: { time: nb ? iso(nb.start) : null, label: nb ? periodLabel(tf, nextKey, cal, nb.start) : null },
+        displacement: 1,
+        provenance: `${PROFILE_VERSION} row=${rowSize}`,
+      });
+    }
+  };
+
+  const lastDone = completed[completed.length - 1];
+  if (lastDone) emit(lastDone, 'confirmed');
+  else warnings.push(`no completed ${tf} period in intraday history for profile`);
+  const current = keys[keys.length - 1];
+  if (developing && current && current !== lastDone) emit(current, 'developing');
+  return { levels: out, warnings };
+}

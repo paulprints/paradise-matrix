@@ -1,0 +1,8 @@
+{
+  "name": "@paradise/contract",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "API types shared by server and web. Types only — no calculations live here.",
+  "exports": { ".": "./src/index.ts" }
+}
