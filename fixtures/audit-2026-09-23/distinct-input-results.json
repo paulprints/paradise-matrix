@@ -1,0 +1,984 @@
+{
+  "candidate_sha256": "855f5ac8d89d060eecf02530ccfeff071c6e6b3667da37cb534895ead2264c14",
+  "definition": "Distinct five-bar OHLC+symbol+frame+session+target-time windows from stable Sep20-22 historical captures; latest capture chosen when same input repeats; exclude exact Sep18 development windows. Decimal input strings retained, not normalized across serialization styles.",
+  "baseline_windows": 25118,
+  "new_windows": {
+    "MNQ 12-26 1Minute": 3733,
+    "QQQ 1Minute": 1170,
+    "QQQ 1Week": 1,
+    "MNQ 12-26 1Week": 380
+  },
+  "overlapping_development_windows": 21566,
+  "repeated_heldout_windows": 87538,
+  "stats": {
+    "MNQ 12-26 1Minute": {
+      "H 1-1": {
+        "rows": 3733,
+        "valid_price_count": 3733,
+        "price_matches": 3733,
+        "price_mismatches": 0,
+        "availability_matches": 3733,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "2.66666666666666666E-12"
+      },
+      "L 1-1": {
+        "rows": 3733,
+        "valid_price_count": 3733,
+        "price_matches": 3733,
+        "price_mismatches": 0,
+        "availability_matches": 3733,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "2.66666666666666666E-12"
+      },
+      "1-1 Dot": {
+        "rows": 3733,
+        "valid_price_count": 3733,
+        "price_matches": 3733,
+        "price_mismatches": 0,
+        "availability_matches": 3733,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "1.33333333333333333E-12"
+      },
+      "Main Channel": {
+        "rows": 3733,
+        "valid_price_count": 3733,
+        "price_matches": 3733,
+        "price_mismatches": 0,
+        "availability_matches": 3733,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "1.044444444444444445E-11"
+      },
+      "5-1 Sell": {
+        "rows": 3733,
+        "valid_price_count": 728,
+        "price_matches": 728,
+        "price_mismatches": 0,
+        "availability_matches": 3669,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 64,
+        "max_abs_difference": "0"
+      },
+      "5-1 Buy": {
+        "rows": 3733,
+        "valid_price_count": 701,
+        "price_matches": 701,
+        "price_mismatches": 0,
+        "availability_matches": 3669,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 64,
+        "max_abs_difference": "0"
+      },
+      "5-2 Sell": {
+        "rows": 3733,
+        "valid_price_count": 1803,
+        "price_matches": 1803,
+        "price_mismatches": 0,
+        "availability_matches": 3623,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 110,
+        "max_abs_difference": "0"
+      },
+      "5-2 Buy": {
+        "rows": 3733,
+        "valid_price_count": 1608,
+        "price_matches": 1608,
+        "price_mismatches": 0,
+        "availability_matches": 3596,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 137,
+        "max_abs_difference": "0"
+      },
+      "5-2 Ex Sell": {
+        "rows": 3733,
+        "valid_price_count": 1803,
+        "price_matches": 1803,
+        "price_mismatches": 0,
+        "availability_matches": 3623,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 110,
+        "max_abs_difference": "0"
+      },
+      "5-2 Ex Buy": {
+        "rows": 3733,
+        "valid_price_count": 1608,
+        "price_matches": 1608,
+        "price_mismatches": 0,
+        "availability_matches": 3596,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 137,
+        "max_abs_difference": "0"
+      },
+      "5-3 Sell": {
+        "rows": 3733,
+        "valid_price_count": 1056,
+        "price_matches": 1056,
+        "price_mismatches": 0,
+        "availability_matches": 3560,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 173,
+        "max_abs_difference": "0"
+      },
+      "5-3 Buy": {
+        "rows": 3733,
+        "valid_price_count": 1201,
+        "price_matches": 1201,
+        "price_mismatches": 0,
+        "availability_matches": 3537,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 196,
+        "max_abs_difference": "0"
+      },
+      "5-9 Sell": {
+        "rows": 3733,
+        "valid_price_count": 3733,
+        "price_matches": 3733,
+        "price_mismatches": 0,
+        "availability_matches": 3733,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "0"
+      },
+      "5-9 Buy": {
+        "rows": 3733,
+        "valid_price_count": 3733,
+        "price_matches": 3733,
+        "price_mismatches": 0,
+        "availability_matches": 3733,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "0"
+      },
+      "5-9 Ex Sell": {
+        "rows": 3733,
+        "valid_price_count": 3733,
+        "price_matches": 3733,
+        "price_mismatches": 0,
+        "availability_matches": 3733,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "0"
+      },
+      "5-9 Ex Buy": {
+        "rows": 3733,
+        "valid_price_count": 3733,
+        "price_matches": 3733,
+        "price_mismatches": 0,
+        "availability_matches": 3733,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "0"
+      },
+      "6-1 Sell": {
+        "rows": 3733,
+        "valid_price_count": 2256,
+        "price_matches": 2256,
+        "price_mismatches": 0,
+        "availability_matches": 3719,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 14,
+        "max_abs_difference": "9.11111111111111112E-12"
+      },
+      "6-1 Buy": {
+        "rows": 3733,
+        "valid_price_count": 2404,
+        "price_matches": 2404,
+        "price_mismatches": 0,
+        "availability_matches": 3723,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 10,
+        "max_abs_difference": "9.11111111111111112E-12"
+      },
+      "6-5 Sell": {
+        "rows": 3733,
+        "valid_price_count": 721,
+        "price_matches": 721,
+        "price_mismatches": 0,
+        "availability_matches": 3722,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 11,
+        "max_abs_difference": "9.11111111111111112E-12"
+      },
+      "6-5 Buy": {
+        "rows": 3733,
+        "valid_price_count": 867,
+        "price_matches": 867,
+        "price_mismatches": 0,
+        "availability_matches": 3720,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 13,
+        "max_abs_difference": "9.11111111111111112E-12"
+      },
+      "6-6 Sell": {
+        "rows": 3733,
+        "valid_price_count": 1542,
+        "price_matches": 1542,
+        "price_mismatches": 0,
+        "availability_matches": 3715,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 18,
+        "max_abs_difference": "9.11111111111111112E-12"
+      },
+      "6-6 Buy": {
+        "rows": 3733,
+        "valid_price_count": 1542,
+        "price_matches": 1542,
+        "price_mismatches": 0,
+        "availability_matches": 3715,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 18,
+        "max_abs_difference": "9.11111111111111112E-12"
+      },
+      "6-7 Sell": {
+        "rows": 3733,
+        "valid_price_count": 268,
+        "price_matches": 268,
+        "price_mismatches": 0,
+        "availability_matches": 3729,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 4,
+        "max_abs_difference": "9.11111111111111112E-12"
+      },
+      "6-7 Buy": {
+        "rows": 3733,
+        "valid_price_count": 336,
+        "price_matches": 336,
+        "price_mismatches": 0,
+        "availability_matches": 3730,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 3,
+        "max_abs_difference": "9.11111111111111112E-12"
+      }
+    },
+    "QQQ 1Minute": {
+      "H 1-1": {
+        "rows": 1170,
+        "valid_price_count": 1170,
+        "price_matches": 1170,
+        "price_mismatches": 0,
+        "availability_matches": 1170,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "3.7E-13"
+      },
+      "L 1-1": {
+        "rows": 1170,
+        "valid_price_count": 1170,
+        "price_matches": 1170,
+        "price_mismatches": 0,
+        "availability_matches": 1170,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "3.56666666666666667E-13"
+      },
+      "1-1 Dot": {
+        "rows": 1170,
+        "valid_price_count": 1170,
+        "price_matches": 1170,
+        "price_mismatches": 0,
+        "availability_matches": 1170,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "2E-13"
+      },
+      "Main Channel": {
+        "rows": 1170,
+        "valid_price_count": 1170,
+        "price_matches": 1170,
+        "price_mismatches": 0,
+        "availability_matches": 1170,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "4.322222222222222218E-13"
+      },
+      "5-1 Sell": {
+        "rows": 1170,
+        "valid_price_count": 259,
+        "price_matches": 259,
+        "price_mismatches": 0,
+        "availability_matches": 1134,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 36,
+        "max_abs_difference": "1.5E-13"
+      },
+      "5-1 Buy": {
+        "rows": 1170,
+        "valid_price_count": 212,
+        "price_matches": 212,
+        "price_mismatches": 0,
+        "availability_matches": 1136,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 34,
+        "max_abs_difference": "1.6E-13"
+      },
+      "5-2 Sell": {
+        "rows": 1170,
+        "valid_price_count": 619,
+        "price_matches": 619,
+        "price_mismatches": 0,
+        "availability_matches": 1113,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 57,
+        "max_abs_difference": "1.6E-13"
+      },
+      "5-2 Buy": {
+        "rows": 1170,
+        "valid_price_count": 459,
+        "price_matches": 459,
+        "price_mismatches": 0,
+        "availability_matches": 1120,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 50,
+        "max_abs_difference": "1.6E-13"
+      },
+      "5-2 Ex Sell": {
+        "rows": 1170,
+        "valid_price_count": 619,
+        "price_matches": 619,
+        "price_mismatches": 0,
+        "availability_matches": 1113,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 57,
+        "max_abs_difference": "4.7E-13"
+      },
+      "5-2 Ex Buy": {
+        "rows": 1170,
+        "valid_price_count": 459,
+        "price_matches": 459,
+        "price_mismatches": 0,
+        "availability_matches": 1120,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 50,
+        "max_abs_difference": "4.7E-13"
+      },
+      "5-3 Sell": {
+        "rows": 1170,
+        "valid_price_count": 268,
+        "price_matches": 268,
+        "price_mismatches": 0,
+        "availability_matches": 1084,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 86,
+        "max_abs_difference": "1.6E-13"
+      },
+      "5-3 Buy": {
+        "rows": 1170,
+        "valid_price_count": 389,
+        "price_matches": 389,
+        "price_mismatches": 0,
+        "availability_matches": 1087,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 83,
+        "max_abs_difference": "1.6E-13"
+      },
+      "5-9 Sell": {
+        "rows": 1170,
+        "valid_price_count": 1170,
+        "price_matches": 1170,
+        "price_mismatches": 0,
+        "availability_matches": 1170,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "1.6E-13"
+      },
+      "5-9 Buy": {
+        "rows": 1170,
+        "valid_price_count": 1170,
+        "price_matches": 1170,
+        "price_mismatches": 0,
+        "availability_matches": 1170,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "1.6E-13"
+      },
+      "5-9 Ex Sell": {
+        "rows": 1170,
+        "valid_price_count": 1170,
+        "price_matches": 1170,
+        "price_mismatches": 0,
+        "availability_matches": 1170,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "4.7E-13"
+      },
+      "5-9 Ex Buy": {
+        "rows": 1170,
+        "valid_price_count": 1170,
+        "price_matches": 1170,
+        "price_mismatches": 0,
+        "availability_matches": 1170,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "4.7E-13"
+      },
+      "6-1 Sell": {
+        "rows": 1170,
+        "valid_price_count": 627,
+        "price_matches": 627,
+        "price_mismatches": 0,
+        "availability_matches": 1164,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 6,
+        "max_abs_difference": "4.44444444444444444E-13"
+      },
+      "6-1 Buy": {
+        "rows": 1170,
+        "valid_price_count": 714,
+        "price_matches": 714,
+        "price_mismatches": 0,
+        "availability_matches": 1162,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 8,
+        "max_abs_difference": "4.44444444444444444E-13"
+      },
+      "6-5 Sell": {
+        "rows": 1170,
+        "valid_price_count": 185,
+        "price_matches": 185,
+        "price_mismatches": 0,
+        "availability_matches": 1164,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 6,
+        "max_abs_difference": "4.21111111111111111E-13"
+      },
+      "6-5 Buy": {
+        "rows": 1170,
+        "valid_price_count": 273,
+        "price_matches": 273,
+        "price_mismatches": 0,
+        "availability_matches": 1162,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 8,
+        "max_abs_difference": "4.08888888888888889E-13"
+      },
+      "6-6 Sell": {
+        "rows": 1170,
+        "valid_price_count": 415,
+        "price_matches": 415,
+        "price_mismatches": 0,
+        "availability_matches": 1162,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 8,
+        "max_abs_difference": "5.77777777777777778E-13"
+      },
+      "6-6 Buy": {
+        "rows": 1170,
+        "valid_price_count": 415,
+        "price_matches": 415,
+        "price_mismatches": 0,
+        "availability_matches": 1162,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 8,
+        "max_abs_difference": "5.88888888888888889E-13"
+      },
+      "6-7 Sell": {
+        "rows": 1170,
+        "valid_price_count": 93,
+        "price_matches": 93,
+        "price_mismatches": 0,
+        "availability_matches": 1168,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 2,
+        "max_abs_difference": "4.16666666666666667E-13"
+      },
+      "6-7 Buy": {
+        "rows": 1170,
+        "valid_price_count": 179,
+        "price_matches": 179,
+        "price_mismatches": 0,
+        "availability_matches": 1166,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 4,
+        "max_abs_difference": "4.28888888888888889E-13"
+      }
+    },
+    "QQQ 1Week": {
+      "H 1-1": {
+        "rows": 1,
+        "valid_price_count": 1,
+        "price_matches": 1,
+        "price_mismatches": 0,
+        "availability_matches": 1,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "1.33333333333333333E-13"
+      },
+      "L 1-1": {
+        "rows": 1,
+        "valid_price_count": 1,
+        "price_matches": 1,
+        "price_mismatches": 0,
+        "availability_matches": 1,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "1.63333333333333333E-13"
+      },
+      "1-1 Dot": {
+        "rows": 1,
+        "valid_price_count": 1,
+        "price_matches": 1,
+        "price_mismatches": 0,
+        "availability_matches": 1,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "7.66666666666666667E-14"
+      },
+      "Main Channel": {
+        "rows": 1,
+        "valid_price_count": 1,
+        "price_matches": 1,
+        "price_mismatches": 0,
+        "availability_matches": 1,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "1.600000000000000004E-13"
+      },
+      "5-1 Sell": {
+        "rows": 1,
+        "valid_price_count": 0,
+        "price_matches": 0,
+        "price_mismatches": 0,
+        "availability_matches": 1,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "0"
+      },
+      "5-1 Buy": {
+        "rows": 1,
+        "valid_price_count": 0,
+        "price_matches": 0,
+        "price_mismatches": 0,
+        "availability_matches": 1,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "0"
+      },
+      "5-2 Sell": {
+        "rows": 1,
+        "valid_price_count": 1,
+        "price_matches": 1,
+        "price_mismatches": 0,
+        "availability_matches": 1,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "0"
+      },
+      "5-2 Buy": {
+        "rows": 1,
+        "valid_price_count": 0,
+        "price_matches": 0,
+        "price_mismatches": 0,
+        "availability_matches": 1,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "0"
+      },
+      "5-2 Ex Sell": {
+        "rows": 1,
+        "valid_price_count": 1,
+        "price_matches": 1,
+        "price_mismatches": 0,
+        "availability_matches": 1,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "0"
+      },
+      "5-2 Ex Buy": {
+        "rows": 1,
+        "valid_price_count": 0,
+        "price_matches": 0,
+        "price_mismatches": 0,
+        "availability_matches": 1,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "0"
+      },
+      "5-3 Sell": {
+        "rows": 1,
+        "valid_price_count": 0,
+        "price_matches": 0,
+        "price_mismatches": 0,
+        "availability_matches": 1,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "0"
+      },
+      "5-3 Buy": {
+        "rows": 1,
+        "valid_price_count": 1,
+        "price_matches": 1,
+        "price_mismatches": 0,
+        "availability_matches": 1,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "6E-14"
+      },
+      "5-9 Sell": {
+        "rows": 1,
+        "valid_price_count": 1,
+        "price_matches": 1,
+        "price_mismatches": 0,
+        "availability_matches": 1,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "0"
+      },
+      "5-9 Buy": {
+        "rows": 1,
+        "valid_price_count": 1,
+        "price_matches": 1,
+        "price_mismatches": 0,
+        "availability_matches": 1,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "0"
+      },
+      "5-9 Ex Sell": {
+        "rows": 1,
+        "valid_price_count": 1,
+        "price_matches": 1,
+        "price_mismatches": 0,
+        "availability_matches": 1,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "1.4E-13"
+      },
+      "5-9 Ex Buy": {
+        "rows": 1,
+        "valid_price_count": 1,
+        "price_matches": 1,
+        "price_mismatches": 0,
+        "availability_matches": 1,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "1E-13"
+      },
+      "6-1 Sell": {
+        "rows": 1,
+        "valid_price_count": 1,
+        "price_matches": 1,
+        "price_mismatches": 0,
+        "availability_matches": 1,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "1.5555555555555556E-14"
+      },
+      "6-1 Buy": {
+        "rows": 1,
+        "valid_price_count": 1,
+        "price_matches": 1,
+        "price_mismatches": 0,
+        "availability_matches": 1,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "1.4444444444444444E-14"
+      },
+      "6-5 Sell": {
+        "rows": 1,
+        "valid_price_count": 0,
+        "price_matches": 0,
+        "price_mismatches": 0,
+        "availability_matches": 1,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "0"
+      },
+      "6-5 Buy": {
+        "rows": 1,
+        "valid_price_count": 0,
+        "price_matches": 0,
+        "price_mismatches": 0,
+        "availability_matches": 1,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "0"
+      },
+      "6-6 Sell": {
+        "rows": 1,
+        "valid_price_count": 1,
+        "price_matches": 1,
+        "price_mismatches": 0,
+        "availability_matches": 1,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "2.98888888888888889E-13"
+      },
+      "6-6 Buy": {
+        "rows": 1,
+        "valid_price_count": 1,
+        "price_matches": 1,
+        "price_mismatches": 0,
+        "availability_matches": 1,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "1.58888888888888889E-13"
+      },
+      "6-7 Sell": {
+        "rows": 1,
+        "valid_price_count": 0,
+        "price_matches": 0,
+        "price_mismatches": 0,
+        "availability_matches": 1,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "0"
+      },
+      "6-7 Buy": {
+        "rows": 1,
+        "valid_price_count": 0,
+        "price_matches": 0,
+        "price_mismatches": 0,
+        "availability_matches": 1,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "0"
+      }
+    },
+    "MNQ 12-26 1Week": {
+      "H 1-1": {
+        "rows": 380,
+        "valid_price_count": 380,
+        "price_matches": 380,
+        "price_mismatches": 0,
+        "availability_matches": 380,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "2.66666666666666666E-12"
+      },
+      "L 1-1": {
+        "rows": 380,
+        "valid_price_count": 380,
+        "price_matches": 380,
+        "price_mismatches": 0,
+        "availability_matches": 380,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "2.66666666666666666E-12"
+      },
+      "1-1 Dot": {
+        "rows": 380,
+        "valid_price_count": 380,
+        "price_matches": 380,
+        "price_mismatches": 0,
+        "availability_matches": 380,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "1.33333333333333333E-12"
+      },
+      "Main Channel": {
+        "rows": 380,
+        "valid_price_count": 380,
+        "price_matches": 380,
+        "price_mismatches": 0,
+        "availability_matches": 380,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "1.044444444444444445E-11"
+      },
+      "5-1 Sell": {
+        "rows": 380,
+        "valid_price_count": 97,
+        "price_matches": 97,
+        "price_mismatches": 0,
+        "availability_matches": 380,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "0"
+      },
+      "5-1 Buy": {
+        "rows": 380,
+        "valid_price_count": 49,
+        "price_matches": 49,
+        "price_mismatches": 0,
+        "availability_matches": 380,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "0"
+      },
+      "5-2 Sell": {
+        "rows": 380,
+        "valid_price_count": 230,
+        "price_matches": 230,
+        "price_mismatches": 0,
+        "availability_matches": 380,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "0"
+      },
+      "5-2 Buy": {
+        "rows": 380,
+        "valid_price_count": 159,
+        "price_matches": 159,
+        "price_mismatches": 0,
+        "availability_matches": 380,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "0"
+      },
+      "5-2 Ex Sell": {
+        "rows": 380,
+        "valid_price_count": 230,
+        "price_matches": 230,
+        "price_mismatches": 0,
+        "availability_matches": 380,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "0"
+      },
+      "5-2 Ex Buy": {
+        "rows": 380,
+        "valid_price_count": 159,
+        "price_matches": 159,
+        "price_mismatches": 0,
+        "availability_matches": 380,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "0"
+      },
+      "5-3 Sell": {
+        "rows": 380,
+        "valid_price_count": 101,
+        "price_matches": 101,
+        "price_mismatches": 0,
+        "availability_matches": 380,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "0"
+      },
+      "5-3 Buy": {
+        "rows": 380,
+        "valid_price_count": 124,
+        "price_matches": 124,
+        "price_mismatches": 0,
+        "availability_matches": 380,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "0"
+      },
+      "5-9 Sell": {
+        "rows": 380,
+        "valid_price_count": 380,
+        "price_matches": 380,
+        "price_mismatches": 0,
+        "availability_matches": 380,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "0"
+      },
+      "5-9 Buy": {
+        "rows": 380,
+        "valid_price_count": 380,
+        "price_matches": 380,
+        "price_mismatches": 0,
+        "availability_matches": 380,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "0"
+      },
+      "5-9 Ex Sell": {
+        "rows": 380,
+        "valid_price_count": 380,
+        "price_matches": 380,
+        "price_mismatches": 0,
+        "availability_matches": 380,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "0"
+      },
+      "5-9 Ex Buy": {
+        "rows": 380,
+        "valid_price_count": 380,
+        "price_matches": 380,
+        "price_mismatches": 0,
+        "availability_matches": 380,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "0"
+      },
+      "6-1 Sell": {
+        "rows": 380,
+        "valid_price_count": 206,
+        "price_matches": 206,
+        "price_mismatches": 0,
+        "availability_matches": 380,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "9.11111111111111112E-12"
+      },
+      "6-1 Buy": {
+        "rows": 380,
+        "valid_price_count": 248,
+        "price_matches": 248,
+        "price_mismatches": 0,
+        "availability_matches": 380,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "9.11111111111111112E-12"
+      },
+      "6-5 Sell": {
+        "rows": 380,
+        "valid_price_count": 56,
+        "price_matches": 56,
+        "price_mismatches": 0,
+        "availability_matches": 380,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "9.11111111111111112E-12"
+      },
+      "6-5 Buy": {
+        "rows": 380,
+        "valid_price_count": 98,
+        "price_matches": 98,
+        "price_mismatches": 0,
+        "availability_matches": 380,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "9.11111111111111112E-12"
+      },
+      "6-6 Sell": {
+        "rows": 380,
+        "valid_price_count": 132,
+        "price_matches": 132,
+        "price_mismatches": 0,
+        "availability_matches": 380,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "9.11111111111111112E-12"
+      },
+      "6-6 Buy": {
+        "rows": 380,
+        "valid_price_count": 132,
+        "price_matches": 132,
+        "price_mismatches": 0,
+        "availability_matches": 380,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "9.11111111111111112E-12"
+      },
+      "6-7 Sell": {
+        "rows": 380,
+        "valid_price_count": 16,
+        "price_matches": 16,
+        "price_mismatches": 0,
+        "availability_matches": 380,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "5.88888888888888888E-12"
+      },
+      "6-7 Buy": {
+        "rows": 380,
+        "valid_price_count": 60,
+        "price_matches": 60,
+        "price_mismatches": 0,
+        "availability_matches": 380,
+        "availability_mismatches": 0,
+        "boundary_sensitive": 0,
+        "max_abs_difference": "9.11111111111111112E-12"
+      }
+    }
+  },
+  "production_eligible": false
+}

@@ -1,0 +1,9 @@
+{
+  "name": "@paradise/engine",
+  "version": "2.0.0",
+  "private": true,
+  "type": "module",
+  "description": "SERVER-ONLY. Level arithmetic from OHLC. Never import from apps/web.",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": { "test": "vitest run" }
+}

@@ -1,0 +1,245 @@
+{
+  "frame": "Week",
+  "displacement": 1,
+  "display_bar_index": 252,
+  "display_bar_time": "2026-07-24T00:00:00.0000000",
+  "source_bar_index": 251,
+  "source_bar_time": "2026-07-17T00:00:00.0000000",
+  "capture_id": "a6fbac399fea4cc18801dcb91f02afb6",
+  "checks": [
+    {
+      "plot": "Zone Six Top",
+      "displayed": "759.71",
+      "source_value_2dp": "759.71",
+      "match": true
+    },
+    {
+      "plot": "Zone Five Top",
+      "displayed": "742.99",
+      "source_value_2dp": "742.99",
+      "match": true
+    },
+    {
+      "plot": "Envelope Top",
+      "displayed": "727.86",
+      "source_value_2dp": "727.86",
+      "match": true
+    },
+    {
+      "plot": "PLDot",
+      "displayed": "712.74",
+      "source_value_2dp": "712.74",
+      "match": true
+    },
+    {
+      "plot": "Envelope Bottom",
+      "displayed": "696.02",
+      "source_value_2dp": "696.02",
+      "match": true
+    },
+    {
+      "plot": "Zone Two Bottom",
+      "displayed": "679.30",
+      "source_value_2dp": "679.30",
+      "match": true
+    },
+    {
+      "plot": "Zone One Bottom",
+      "displayed": "664.18",
+      "source_value_2dp": "664.18",
+      "match": true
+    },
+    {
+      "plot": "H 1-1",
+      "displayed": "717.54",
+      "source_value_2dp": "717.54",
+      "match": true
+    },
+    {
+      "plot": "L 1-1",
+      "displayed": "679.94",
+      "source_value_2dp": "679.94",
+      "match": true
+    },
+    {
+      "plot": "1-1 Dot",
+      "displayed": "702.15",
+      "source_value_2dp": "702.15",
+      "match": true
+    },
+    {
+      "plot": "Main Channel",
+      "displayed": "712.17",
+      "source_value_2dp": "712.17",
+      "match": true
+    },
+    {
+      "plot": "5-1 Sell",
+      "displayed": "n/a",
+      "source_value_2dp": "n/a",
+      "match": true
+    },
+    {
+      "plot": "5-1 Buy",
+      "displayed": "n/a",
+      "source_value_2dp": "n/a",
+      "match": true
+    },
+    {
+      "plot": "5-2 Sell",
+      "displayed": "n/a",
+      "source_value_2dp": "n/a",
+      "match": true
+    },
+    {
+      "plot": "5-2 Buy",
+      "displayed": "672.61",
+      "source_value_2dp": "672.61",
+      "match": true
+    },
+    {
+      "plot": "5-2 Ex Sell",
+      "displayed": "n/a",
+      "source_value_2dp": "n/a",
+      "match": true
+    },
+    {
+      "plot": "5-2 Ex Buy",
+      "displayed": "658.46",
+      "source_value_2dp": "658.46",
+      "match": true
+    },
+    {
+      "plot": "5-3 Sell",
+      "displayed": "722.33",
+      "source_value_2dp": "722.33",
+      "match": true
+    },
+    {
+      "plot": "5-3 Buy",
+      "displayed": "n/a",
+      "source_value_2dp": "n/a",
+      "match": true
+    },
+    {
+      "plot": "5-9 Sell",
+      "displayed": "747.81",
+      "source_value_2dp": "747.81",
+      "match": true
+    },
+    {
+      "plot": "5-9 Buy",
+      "displayed": "647.13",
+      "source_value_2dp": "647.13",
+      "match": true
+    },
+    {
+      "plot": "5-9 Ex Sell",
+      "displayed": "771.26",
+      "source_value_2dp": "771.26",
+      "match": true
+    },
+    {
+      "plot": "5-9 Ex Buy",
+      "displayed": "607.50",
+      "source_value_2dp": "607.50",
+      "match": true
+    },
+    {
+      "plot": "6-1 Sell",
+      "displayed": "738.72",
+      "source_value_2dp": "738.72",
+      "match": true
+    },
+    {
+      "plot": "6-1 Buy",
+      "displayed": "n/a",
+      "source_value_2dp": "n/a",
+      "match": true
+    },
+    {
+      "plot": "6-5 Sell",
+      "displayed": "701.12",
+      "source_value_2dp": "701.12",
+      "match": true
+    },
+    {
+      "plot": "6-5 Buy",
+      "displayed": "n/a",
+      "source_value_2dp": "n/a",
+      "match": true
+    },
+    {
+      "plot": "6-6 Sell",
+      "displayed": "724.99",
+      "source_value_2dp": "724.99",
+      "match": true
+    },
+    {
+      "plot": "6-6 Buy",
+      "displayed": "612.19",
+      "source_value_2dp": "612.19",
+      "match": true
+    },
+    {
+      "plot": "6-7 Sell",
+      "displayed": "n/a",
+      "source_value_2dp": "n/a",
+      "match": true
+    },
+    {
+      "plot": "6-7 Buy",
+      "displayed": "n/a",
+      "source_value_2dp": "n/a",
+      "match": true
+    },
+    {
+      "plot": "Near R Top",
+      "displayed": "n/a",
+      "source_value_2dp": "n/a",
+      "match": true
+    },
+    {
+      "plot": "Near R Bot",
+      "displayed": "n/a",
+      "source_value_2dp": "n/a",
+      "match": true
+    },
+    {
+      "plot": "Near S Top",
+      "displayed": "n/a",
+      "source_value_2dp": "n/a",
+      "match": true
+    },
+    {
+      "plot": "Near S Bot",
+      "displayed": "n/a",
+      "source_value_2dp": "n/a",
+      "match": true
+    },
+    {
+      "plot": "Far R Top",
+      "displayed": "n/a",
+      "source_value_2dp": "n/a",
+      "match": true
+    },
+    {
+      "plot": "Far R Bot",
+      "displayed": "n/a",
+      "source_value_2dp": "n/a",
+      "match": true
+    },
+    {
+      "plot": "Far S Top",
+      "displayed": "n/a",
+      "source_value_2dp": "n/a",
+      "match": true
+    },
+    {
+      "plot": "Far S Bot",
+      "displayed": "n/a",
+      "source_value_2dp": "n/a",
+      "match": true
+    }
+  ]
+}

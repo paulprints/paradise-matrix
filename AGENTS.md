@@ -1,0 +1,13 @@
+# Rules for anyone (human or AI) changing this repo
+
+1. **`packages/engine` is server-only.** Never import it from `apps/web`; a test enforces this. It holds the audited formulas.
+2. **The golden suite is the spec.** `packages/engine/test/golden.test.ts` must pass unmodified. Don't change formulas, tolerances or availability rules to make a feature work. New formulas need captured vendor evidence added to `fixtures/` first.
+3. **Never round internally.** Prices are full precision until the display formatter.
+4. **Never fabricate a level.** Inactive and boundary levels have `price: null`. Too little history means no levels plus a warning, never zeros.
+5. **Never guess time.** Completeness comes from `apps/server/src/data/calendar.ts`. If a date can't be named, return null.
+6. **One provider per response.** Don't merge timeframes from different providers.
+7. **Names live in `apps/server/src/labels.ts` only.** Vendor plot names must never reach a response (tested).
+8. **Facts, not forecasts.** Don't add trend/exhaustion/reversal claims without written rules and outcome tests.
+9. Run `npm run check` before committing.
+
+Map: `packages/contract` (API types) → `packages/engine` (formulas.ts table, frame.ts source/display, profile.ts TPO) → `apps/server` (data/: providers, bars, calendar, instruments, market cache; levels.ts orchestration; app.ts routes; auth/) → `apps/web` (lib/heat.ts presentation, components/Ladder.tsx).
