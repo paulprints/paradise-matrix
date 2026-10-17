@@ -1,11 +1,11 @@
 import { loadConfig } from './config.ts';
+import { loadDotEnv } from './env.ts';
 import { UserStore } from './auth/db.ts';
 import { createApp } from './app.ts';
 import { createMarket } from './data/market.ts';
 import { externalProvider, yahooProvider, type Provider } from './data/providers.ts';
 
-// Load apps/server/.env when present (Node ≥ 20.12); real env vars win.
-try { process.loadEnvFile('.env'); } catch { /* no .env file */ }
+loadDotEnv();
 const config = loadConfig();
 const store = await UserStore.open(config.databasePath);
 const providers: Provider[] = config.providers.map((p) =>

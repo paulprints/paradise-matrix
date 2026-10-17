@@ -9,13 +9,14 @@
  */
 import { createInterface } from 'node:readline/promises';
 import { UserStore } from './auth/db.ts';
+import { loadDotEnv } from './env.ts';
 
 async function ask(q: string): Promise<string> {
   const rl = createInterface({ input: process.stdin, output: process.stdout });
   try { return (await rl.question(q)).trim(); } finally { rl.close(); }
 }
 
-try { process.loadEnvFile('.env'); } catch { /* no .env file */ }
+loadDotEnv();
 const [cmd, name, arg] = process.argv.slice(2);
 const store = await UserStore.open(process.env.DATABASE_PATH ?? process.env.DATABASE_URL ?? './data/app.db');
 try {

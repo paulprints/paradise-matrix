@@ -46,8 +46,12 @@ npm run verify:live -w apps/server     # on a machine that can reach Yahoo: live
 **API (Windows host, PM2), replacing the v1 backend**
 ```bash
 git pull && npm ci && npm run build -w apps/server
-# apps/server/.env: NODE_ENV=production, JWT_SECRET (32+ chars), DATABASE_PATH -> existing app.db
-pm2 start apps/server/dist/server.js --name paradise-api --cwd apps/server
+# apps/server/.env (exactly ".env", not ".env.txt"): NODE_ENV=production, PORT, JWT_SECRET (32+ chars),
+# DATABASE_PATH -> a copy of v1's app.db kept OUTSIDE the repo, DATA_PROVIDERS=yahoo
+cd apps/server                     # PM2 uses this as the working directory, which is where .env is read
+pm2 start dist/server.js --name paradise-v2
+pm2 logs paradise-v2               # first line must be "[config] loaded …\.env"
+pm2 save
 ```
 **Web (Vercel):** import the repo, set *Root Directory* to `apps/web`, set `VITE_API_URL` to the API origin. `apps/web/vercel.json` handles install/build.
 
