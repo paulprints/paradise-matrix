@@ -27,7 +27,7 @@ describe('placeLabels', () => {
 
 describe('view <-> URL', () => {
   it('round-trips', () => {
-    const v = { ...DEFAULT_VIEW, symbol: 'NQ', timeframes: ['D' as const, '1H' as const], displacement: 0 as const, asOf: '2026-09-08T20:15:00.000Z', developing: true, profile: true, heat: false, zoom: 12, groups: ['structure' as const] };
+    const v = { ...DEFAULT_VIEW, heatStyle: 'halftone' as const, view: 'ladder' as const, chartTf: '15m' as const, symbol: 'NQ', timeframes: ['D' as const, '1H' as const], displacement: 0 as const, asOf: '2026-09-08T20:15:00.000Z', developing: true, profile: true, heat: false, zoom: 12, groups: ['structure' as const] };
     expect(parseView(serializeView(v))).toEqual(v);
   });
   it('defaults and rejects junk', () => {

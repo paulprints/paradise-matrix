@@ -1,6 +1,6 @@
 import { memo, useEffect, useMemo, useRef, useState, type JSX, type KeyboardEvent, type PointerEvent } from 'react';
 import type { Level, LevelsResponse } from '@paradise/contract';
-import { bandwidthFor, computeHeat, type HeatRow } from '../lib/heat.ts';
+import { bandwidthFor, computeHeat, viridisCss, ZONES, type HeatRow, type HeatStyle, type Zone } from '../lib/heat.ts';
 import { formatPrice } from '../lib/format.ts';
 import { placeLabels } from '../lib/layout.ts';
 import { ZOOM_STEPS } from '../lib/view.ts';
@@ -9,6 +9,7 @@ interface Props {
   data: LevelsResponse;
   levels: Level[];
   heat: boolean;
+  heatStyle?: HeatStyle;
   zoom: number;
   onZoom: (z: number) => void;
   onInspect: (row: HeatRow | null) => void;
@@ -45,6 +46,49 @@ function niceStep(span: number, target = 8): number {
   return [1, 2, 2.5, 5, 10].map((m) => m * mag).find((s) => s >= raw) ?? 10 * mag;
 }
 
+export interface ZoneBlock { zone: Zone; from: number; to: number; peak: number }
+
+/** Contiguous runs of the same zone (rows are ordered top → bottom), with each run's peak intensity. */
+export function zoneBlocks(rows: readonly Pick<HeatRow, 'zone' | 'intensity'>[]): ZoneBlock[] {
+  const out: ZoneBlock[] = [];
+  rows.forEach((r, i) => {
+    const last = out[out.length - 1];
+    if (last && last.zone === r.zone) { last.to = i; last.peak = Math.max(last.peak, r.intensity); }
+    else out.push({ zone: r.zone, from: i, to: i, peak: r.intensity });
+  });
+  return out;
+}
+
+/**
+ * The v1 "Energy Matrix" column: every row painted on the viridis scale
+ * (purple = little overlap, yellow = heaviest), each zone run labelled with its
+ * name and peak. Percentages are on the fixed scale, not relative to the max.
+ */
+const MatrixColumn = memo(function MatrixColumn({ rows, x0, x1, top, bottom }: { rows: HeatRow[]; x0: number; x1: number; top: number; bottom: number }) {
+  if (!rows.length) return null;
+  const h = (bottom - top) / rows.length;
+  return <g aria-hidden="true">{rows.map((r, i) => <rect key={i} x={x0} y={top + i * h} width={x1 - x0} height={h + 0.6} fill={viridisCss(r.intensity)} />)}</g>;
+});
+
+/** Zone names and peaks, drawn above the level rules so lines never strike through them. */
+function MatrixLabels({ rows, x0, top, bottom }: { rows: HeatRow[]; x0: number; top: number; bottom: number }) {
+  if (!rows.length) return null;
+  const h = (bottom - top) / rows.length;
+  return (
+    <g aria-hidden="true">
+      {zoneBlocks(rows).map((b) => {
+        const y0 = top + b.from * h, y1 = top + (b.to + 1) * h;
+        if (y1 - y0 < 18) return null;
+        return (
+          <text key={b.from} className="zone-lab" x={x0 + 8} y={(y0 + y1) / 2 + 4}>
+            {ZONES[b.zone].label} <tspan className="num">{Math.round(b.peak * 100)}%</tspan>
+          </text>
+        );
+      })}
+    </g>
+  );
+}
+
 /** Halftone dots: radius ∝ √intensity, alternate rows offset half a cell. Memoised — the expensive layer. */
 const Halftone = memo(function Halftone({ rows, x0, x1, top, bottom, min, max }: { rows: HeatRow[]; x0: number; x1: number; top: number; bottom: number; min: number; max: number }) {
   if (!rows.length) return null;
@@ -63,7 +107,7 @@ const Halftone = memo(function Halftone({ rows, x0, x1, top, bottom, min, max }:
   return <g aria-hidden="true">{dots}</g>;
 });
 
-export function Ladder({ data, levels, heat, zoom, onZoom, onInspect }: Props) {
+export function Ladder({ data, levels, heat, heatStyle = 'matrix', zoom, onZoom, onInspect }: Props) {
   const [ref, { w, h }] = useSize<HTMLDivElement>();
   const [cursor, setCursor] = useState<number | null>(null);
   const tick = data.instrument.tick;
@@ -145,7 +189,9 @@ export function Ladder({ data, levels, heat, zoom, onZoom, onInspect }: Props) {
           {ticks.map((p) => (
             <text key={p} className="axis" x={AXIS_W - 14} y={y(p) + 4} textAnchor="end">{formatPrice(p, step < 1 ? tick : Math.max(tick, 1))}</text>
           ))}
-          {heat && <Halftone rows={rows} x0={stripX0} x1={stripX1} top={top} bottom={bottom} min={min} max={max} />}
+          {heat && (heatStyle === 'matrix'
+            ? <MatrixColumn rows={rows} x0={stripX0} x1={stripX1} top={top} bottom={bottom} />
+            : <Halftone rows={rows} x0={stripX0} x1={stripX1} top={top} bottom={bottom} min={min} max={max} />)}
           {unlabelled.map((l) => (
             <line key={l.id} className={`rule faint ${levelClass(l)}`} x1={stripX0} x2={stripX1 + 10} y1={y(l.price!)} y2={y(l.price!)} />
           ))}
@@ -161,6 +207,7 @@ export function Ladder({ data, levels, heat, zoom, onZoom, onInspect }: Props) {
               </g>
             );
           })}
+          {heat && heatStyle === 'matrix' && <MatrixLabels rows={rows} x0={stripX0} top={top} bottom={bottom} />}
           {data.lastPrice && (
             <g>
               <line className="price-line" x1={AXIS_W - 8} x2={w} y1={y(center)} y2={y(center)} />

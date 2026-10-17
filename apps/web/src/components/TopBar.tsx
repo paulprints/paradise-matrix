@@ -107,7 +107,13 @@ export function TopBar({ view, setView, anchors, user, theme, onTheme, onAdmin, 
         ))}
         <label className="toggle"><input type="checkbox" checked={view.profile} onChange={(e) => setView({ profile: e.target.checked })} />Market Profile (D/W/M)</label>
         <label className="toggle"><input type="checkbox" checked={view.developing} onChange={(e) => setView({ developing: e.target.checked })} disabled={!!view.asOf} />Developing levels (live only)</label>
-        <label className="toggle"><input type="checkbox" checked={view.heat} onChange={(e) => setView({ heat: e.target.checked })} />Heat</label>
+        <h4>Heat</h4>
+        <div className="seg" role="group" aria-label="Heat">
+          <button aria-pressed={!view.heat} onClick={() => setView({ heat: false })}>Off</button>
+          <button aria-pressed={view.heat && view.heatStyle === 'matrix'} onClick={() => setView({ heat: true, heatStyle: 'matrix' })}>Matrix</button>
+          <button aria-pressed={view.heat && view.heatStyle === 'halftone'} onClick={() => setView({ heat: true, heatStyle: 'halftone' })}>Halftone</button>
+        </div>
+        <p className="note">Matrix uses the original colour scale, purple (little overlap) to yellow (heaviest). Halftone prints the same values as ink dots.</p>
         <h4>Displacement</h4>
         <div className="seg" role="group" aria-label="Displacement">
           <button aria-pressed={view.displacement === 1} onClick={() => setView({ displacement: 1 })}>+1 forward</button>
