@@ -18,7 +18,7 @@ const AXIS_W = 62;
 const PAD_Y = 18;
 const CELL = 7;
 const LABEL_GAP = 15;
-const TF_RANK: Record<string, number> = { M: 0, W: 1, D: 2, '1H': 3, '30m': 4, '15m': 5 };
+const TF_RANK: Record<string, number> = { M: 0, W: 1, D: 2, '1H': 3, '30m': 4, '15m': 5, '5m': 6, '1m': 7 };
 
 /** Lower = more important. Decides which levels keep a text label when space runs out. */
 export function labelPriority(l: Level): number {

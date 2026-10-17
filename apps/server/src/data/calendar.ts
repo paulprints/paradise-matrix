@@ -90,7 +90,7 @@ export function prevTradingDay(cal: ExchangeCalendar, ymd: string): string {
 export const weekKey = (ymd: string) => addDays(ymd, -((weekdayOf(ymd) + 6) % 7));
 export const monthKey = (ymd: string) => ymd.slice(0, 7);
 
-export const INTRADAY_SECONDS: Partial<Record<Timeframe, number>> = { '15m': 900, '30m': 1800, '1H': 3600 };
+export const INTRADAY_SECONDS: Partial<Record<Timeframe, number>> = { '1m': 60, '5m': 300, '15m': 900, '30m': 1800, '1H': 3600 };
 export const isIntraday = (tf: Timeframe) => tf in INTRADAY_SECONDS;
 
 /** Trading dates belonging to a D/W/M period key. */

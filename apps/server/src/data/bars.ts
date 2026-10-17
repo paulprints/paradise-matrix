@@ -5,7 +5,7 @@
  */
 import type { Timeframe } from '@paradise/contract';
 import type { EngineBar } from '@paradise/engine';
-import { INTRADAY_SECONDS, nextPeriodKey, periodBounds, periodKeyOf, periodLabel, type ExchangeCalendar } from './calendar.ts';
+import { INTRADAY_SECONDS, nextPeriodKey, nextTradingDay, periodBounds, periodKeyOf, periodLabel, type ExchangeCalendar } from './calendar.ts';
 
 export interface RawBar {
   t: number; o: number; h: number; l: number; c: number; v: number;
@@ -16,12 +16,23 @@ export interface RawBar {
 export interface Bar extends EngineBar {
   readonly key: string;
   readonly label: string;
+  /** Instant (unix s) from which the bar counts as final: end + graceFor(tf). */
+  readonly ready: number;
 }
 
 export interface NormalizeResult { bars: Bar[]; dropped: number; warnings: string[] }
 
-/** Minutes after the scheduled close before a bar counts as final (feeds settle late). */
+/** Daily/weekly/monthly feeds settle late: wait 15 minutes after the close. */
 export const COMPLETION_GRACE_S = 15 * 60;
+
+/**
+ * Grace before a bar counts as final. Intraday bars settle within seconds; a
+ * 15-minute grace there would hold a 5m chart three bars behind.
+ */
+export function graceFor(tf: Timeframe): number {
+  const span = INTRADAY_SECONDS[tf];
+  return span ? Math.min(60, span / 4) : COMPLETION_GRACE_S;
+}
 
 const finite = (r: RawBar) => [r.t, r.o, r.h, r.l, r.c].every((x) => typeof x === 'number' && Number.isFinite(x));
 const sane = (r: RawBar) => r.h >= r.l && r.h >= Math.min(r.o, r.c) && r.l <= Math.max(r.o, r.c) && r.l > 0;
@@ -53,11 +64,13 @@ export function normalizeBars(raw: readonly RawBar[], tf: Timeframe, cal: Exchan
   if (dropped) warnings.push(`${dropped} malformed or off-calendar ${tf} row(s) dropped`);
   for (const { r, key } of byKey.values()) if (r.note) warnings.push(`${tf} ${periodLabel(tf, key, cal, r.t)}: ${r.note}`);
 
+  const grace = graceFor(tf);
   const bars = [...byKey.values()]
     .sort((a, b) => a.start - b.start)
     .map(({ r, start, end, key }) => ({
       key, t: start, end, o: r.o, h: r.h, l: r.l, c: r.c, v: r.v || 0,
-      complete: now >= end + COMPLETION_GRACE_S,
+      ready: end + grace,
+      complete: now >= end + grace,
       label: periodLabel(tf, key, cal, start),
     }));
 
@@ -75,26 +88,34 @@ export function normalizeBars(raw: readonly RawBar[], tf: Timeframe, cal: Exchan
 export function confirmedIndexAt(bars: readonly Bar[], asOf: number | null): number {
   for (let i = bars.length - 1; i >= 0; i--) {
     const b = bars[i]!;
-    if (asOf === null ? b.complete : b.end + COMPLETION_GRACE_S <= asOf && b.complete) return i;
+    if (asOf === null ? b.complete : b.ready <= asOf && b.complete) return i;
   }
   return -1;
 }
 
-/** Name the display bar at `index`, which may be past the data. Null when it can't be named honestly. */
-export function displayRef(bars: readonly Bar[], index: number, tf: Timeframe, cal: ExchangeCalendar): { time: number; label: string } | null {
+/**
+ * Name the display bar at `index`, which may be past the data, with its time window.
+ * D/W/M: the next calendar periods. Intraday: steps bar by bar, rolling into the next
+ * trading session's open at a session close. Null when there is nothing to anchor to.
+ */
+export function displayRef(bars: readonly Bar[], index: number, tf: Timeframe, cal: ExchangeCalendar): { time: number; end: number; label: string } | null {
   const b = bars[index];
-  if (b) return { time: b.t, label: b.label };
+  if (b) return { time: b.t, end: b.end, label: b.label };
   const last = bars[bars.length - 1];
-  if (!last) return null;
+  if (!last || index < 0) return null;
   const k = index - (bars.length - 1);
   if (tf === 'D' || tf === 'W' || tf === 'M') {
     const key = nextPeriodKey(cal, tf, last.key, k);
     const bounds = periodBounds(cal, tf, key);
-    return bounds ? { time: bounds.start, label: periodLabel(tf, key, cal, bounds.start) } : null;
+    return bounds ? { time: bounds.start, end: bounds.end, label: periodLabel(tf, key, cal, bounds.start) } : null;
   }
-  // Intraday: the next bar may cross a session boundary; only name it inside the same session.
   const span = INTRADAY_SECONDS[tf]!;
-  const t = last.t + k * span;
-  const sameSession = cal.sessionDateOf(t) === cal.sessionDateOf(last.t) && t < cal.sessionClose(cal.sessionDateOf(last.t));
-  return sameSession ? { time: t, label: periodLabel(tf, String(t), cal, t) } : null;
+  let t = last.t;
+  for (let n = 0; n < k; n++) {
+    const date = cal.sessionDateOf(t);
+    const next = t + span;
+    t = next < cal.sessionClose(date) ? next : cal.sessionOpen(nextTradingDay(cal, date));
+  }
+  const close = cal.sessionClose(cal.sessionDateOf(t));
+  return { time: t, end: Math.min(t + span, close > t ? close : t + span), label: periodLabel(tf, String(t), cal, t) };
 }

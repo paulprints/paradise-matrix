@@ -13,7 +13,7 @@
 import type { Level, Timeframe } from '@paradise/contract';
 
 export const HEAT_VERSION = 'heat@1';
-export const TF_WEIGHT: Record<Timeframe, number> = { M: 3, W: 2, D: 1, '1H': 0.75, '30m': 0.6, '15m': 0.5 };
+export const TF_WEIGHT: Record<Timeframe, number> = { M: 3, W: 2, D: 1, '1H': 0.75, '30m': 0.6, '15m': 0.5, '5m': 0.4, '1m': 0.3 };
 /** Coincident levels of the heaviest frame in view that saturate the scale. */
 export const REFERENCE_COUNT = 3;
 export const KERNEL_ATR_FRACTION = 0.3;

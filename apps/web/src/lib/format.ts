@@ -16,4 +16,4 @@ export function formatDelta(delta: number, tick: number): string {
   return delta > 0 ? `+${s}` : delta < 0 ? `−${s}` : s;
 }
 
-export const TF_NAMES: Record<string, string> = { M: 'Monthly', W: 'Weekly', D: 'Daily', '1H': '1 hour', '30m': '30 min', '15m': '15 min' };
+export const TF_NAMES: Record<string, string> = { M: 'Monthly', W: 'Weekly', D: 'Daily', '1H': '1 hour', '30m': '30 min', '15m': '15 min', '5m': '5 min', '1m': '1 min' };

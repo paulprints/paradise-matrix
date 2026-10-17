@@ -7,8 +7,9 @@
  * vendor naming never reaches the client.
  */
 
-export type Timeframe = 'M' | 'W' | 'D' | '1H' | '30m' | '15m';
-export const TIMEFRAMES: readonly Timeframe[] = ['M', 'W', 'D', '1H', '30m', '15m'];
+export type Timeframe = 'M' | 'W' | 'D' | '1H' | '30m' | '15m' | '5m' | '1m';
+/** Coarse to fine. */
+export const TIMEFRAMES: readonly Timeframe[] = ['M', 'W', 'D', '1H', '30m', '15m', '5m', '1m'];
 
 /** Bars between the source bar used for arithmetic and the bar a level is drawn on. Normal is 1. */
 export type Displacement = 0 | 1;
@@ -143,3 +144,90 @@ export interface ApiError {
   error: string;
   details?: unknown;
 }
+
+// ---------------------------------------------------------------------------
+// Chart (v2.1): candles + level history with validity windows
+// ---------------------------------------------------------------------------
+
+export interface ChartRequest {
+  symbol: string;
+  /** Candle timeframe shown on the chart. */
+  chartTf: Timeframe;
+  /** Timeframes whose levels are overlaid (may include chartTf). */
+  overlays: Timeframe[];
+  displacement?: Displacement;
+  developing?: boolean;
+  profile?: boolean;
+  /** Most recent N chart bars (default 1000, max 5000). Level history covers the same window. */
+  bars?: number;
+  /**
+   * Incremental update: unix seconds. Returns only chart bars with t ≥ since and segments
+   * whose window ends after since. The client keeps everything older, which never changes.
+   */
+  since?: number;
+}
+
+export interface ChartBar {
+  /** Period start, unix seconds. */
+  t: number;
+  o: number; h: number; l: number; c: number; v: number;
+  complete: boolean;
+}
+
+/** Shared description of a level slot; segments refer to it by index. */
+export interface LevelKey {
+  slug: string;
+  label: string;
+  group: LevelGroup;
+  family: string;
+  side?: 'buy' | 'sell';
+}
+
+/**
+ * One level, valid on one display bar of its timeframe.
+ * [keyIndex, timeframe, price, from, to, basis (0 confirmed | 1 developing), sourceStart]
+ * from/to: unix seconds of the display bar's start and end. sourceStart: start of the bar the arithmetic used.
+ * Compact on purpose — a chart carries thousands of these.
+ */
+export type LevelSegment = [key: number, tf: Timeframe, price: number, from: number, to: number, basis: 0 | 1, source: number];
+
+export interface ChartResponse {
+  instrument: Instrument;
+  generatedAt: string;
+  dataSource: string;
+  engineVersion: string;
+  chartTf: Timeframe;
+  bars: ChartBar[];
+  keys: LevelKey[];
+  segments: LevelSegment[];
+  /** Current state of each overlay timeframe (same as /api/levels frames). */
+  frames: Frame[];
+  lastPrice: { price: number; time: string } | null;
+  /** Echo of the request's since (null for a full load). */
+  since: number | null;
+  warnings: string[];
+}
+
+// ---------------------------------------------------------------------------
+// Drawings (per member, per instrument)
+// ---------------------------------------------------------------------------
+
+/** A chart anchor: unix seconds and price. */
+export interface Anchor { t: number; p: number }
+
+export const DRAWING_COLORS = ['paper', 'ink', 'seal', 'alert', 'sky'] as const;
+export type DrawingColor = (typeof DRAWING_COLORS)[number];
+
+interface DrawingBase { id: string; color: DrawingColor }
+export type Drawing =
+  | (DrawingBase & { kind: 'trend'; a: Anchor; b: Anchor; extend: boolean })
+  | (DrawingBase & { kind: 'hline'; p: number })
+  | (DrawingBase & { kind: 'vline'; t: number })
+  | (DrawingBase & { kind: 'rect'; a: Anchor; b: Anchor })
+  | (DrawingBase & { kind: 'text'; a: Anchor; text: string })
+  | (DrawingBase & { kind: 'brush'; pts: Anchor[] });
+export type DrawingKind = Drawing['kind'];
+
+export const DRAWING_LIMITS = { perSymbol: 500, brushPoints: 2000, textLength: 200 } as const;
+
+export interface DrawingsResponse { symbol: string; drawings: Drawing[]; updatedAt: string | null }

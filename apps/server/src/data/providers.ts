@@ -22,9 +22,11 @@ export class ProviderError extends Error {
 type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 
 /** Longest span one bar of each timeframe can cover — bounds the session-summary match. */
-const BAR_SPAN_S: Record<Timeframe, number> = { '15m': 900, '30m': 1800, '1H': 3600, D: 86_400, W: 7 * 86_400, M: 32 * 86_400 };
+const BAR_SPAN_S: Record<Timeframe, number> = { '1m': 60, '5m': 300, '15m': 900, '30m': 1800, '1H': 3600, D: 86_400, W: 7 * 86_400, M: 32 * 86_400 };
 
 const YAHOO_PARAMS: Record<Timeframe, { interval: string; range: string }> = {
+  '1m': { interval: '1m', range: '7d' },
+  '5m': { interval: '5m', range: '60d' },
   '15m': { interval: '15m', range: '60d' },
   '30m': { interval: '30m', range: '60d' },
   '1H': { interval: '60m', range: '730d' },
