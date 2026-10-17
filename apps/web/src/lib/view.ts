@@ -3,6 +3,7 @@
  * another member and reopens exactly (symbol, frames, as-of, options).
  */
 import { TIMEFRAMES, type LevelGroup, type Timeframe } from '@paradise/contract';
+import type { HeatStyle } from './heat.ts';
 
 export interface ViewState {
   view: 'chart' | 'ladder';
@@ -16,6 +17,7 @@ export interface ViewState {
   profile: boolean;
   groups: LevelGroup[];
   heat: boolean;
+  heatStyle: HeatStyle;
   /** Visible span as a multiple of the finest frame's ATR. */
   zoom: number;
 }
@@ -31,6 +33,7 @@ export const DEFAULT_VIEW: ViewState = {
   profile: false,
   groups: ['structure', 'range', 'profile'],
   heat: true,
+  heatStyle: 'matrix',
   zoom: 8,
 };
 
@@ -55,6 +58,7 @@ export function parseView(search: string): ViewState {
   const g = q.get('g')?.split(',').filter((x): x is LevelGroup => (GROUPS as string[]).includes(x));
   if (g) v.groups = g;
   if (q.get('heat') === '0') v.heat = false;
+  if (q.get('hs') === 'halftone') v.heatStyle = 'halftone';
   const z = Number(q.get('z'));
   if (ZOOM_STEPS.includes(z)) v.zoom = z;
   return v;
@@ -72,6 +76,7 @@ export function serializeView(v: ViewState): string {
   if (v.profile) q.set('mp', '1');
   if (v.groups.join(',') !== DEFAULT_VIEW.groups.join(',')) q.set('g', v.groups.join(','));
   if (!v.heat) q.set('heat', '0');
+  if (v.heatStyle !== DEFAULT_VIEW.heatStyle) q.set('hs', v.heatStyle);
   if (v.zoom !== DEFAULT_VIEW.zoom) q.set('z', String(v.zoom));
   return `?${q.toString()}`;
 }

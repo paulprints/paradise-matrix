@@ -13,6 +13,33 @@
 import type { Level, Timeframe } from '@paradise/contract';
 
 export const HEAT_VERSION = 'heat@1';
+
+/** halftone: ink dots sized by intensity. matrix: the v1 colour scale as solid cells. */
+export type HeatStyle = 'halftone' | 'matrix';
+
+/** The v1 "Energy Matrix" colour stops (viridis): purple (void) → blue → teal → lime → yellow (terminal). */
+export const VIRIDIS: ReadonlyArray<readonly [pos: number, r: number, g: number, b: number]> = [
+  [0, 68, 1, 84], [0.25, 59, 82, 139], [0.5, 33, 145, 140], [0.75, 94, 201, 98], [1, 253, 231, 37],
+];
+
+/** Colour for intensity t ∈ [0, 1] as [r, g, b]. */
+export function viridis(t: number): [number, number, number] {
+  const x = Math.min(1, Math.max(0, Number.isFinite(t) ? t : 0));
+  for (let i = 0; i < VIRIDIS.length - 1; i++) {
+    const [p0, r0, g0, b0] = VIRIDIS[i]!, [p1, r1, g1, b1] = VIRIDIS[i + 1]!;
+    if (x <= p1) {
+      const u = (x - p0) / (p1 - p0);
+      return [Math.round(r0 + (r1 - r0) * u), Math.round(g0 + (g1 - g0) * u), Math.round(b0 + (b1 - b0) * u)];
+    }
+  }
+  const [, r, g, b] = VIRIDIS[VIRIDIS.length - 1]!;
+  return [r, g, b];
+}
+
+export const viridisCss = (t: number, alpha = 1) => { const [r, g, b] = viridis(t); return `rgba(${r}, ${g}, ${b}, ${alpha})`; };
+
+/** CSS gradient of the scale, for legends. */
+export const VIRIDIS_GRADIENT = `linear-gradient(90deg, ${VIRIDIS.map(([p, r, g, b]) => `rgb(${r}, ${g}, ${b}) ${p * 100}%`).join(', ')})`;
 export const TF_WEIGHT: Record<Timeframe, number> = { M: 3, W: 2, D: 1, '1H': 0.75, '30m': 0.6, '15m': 0.5, '5m': 0.4, '1m': 0.3 };
 /** Coincident levels of the heaviest frame in view that saturate the scale. */
 export const REFERENCE_COUNT = 3;

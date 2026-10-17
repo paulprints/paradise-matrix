@@ -51,3 +51,43 @@ describe('computeHeat', () => {
     expect([0.9, 0.7, 0.5, 0.1].map(zoneOf)).toEqual(['terminal', 'friction', 'transit', 'void']);
   });
 });
+
+import { viridis, VIRIDIS, VIRIDIS_GRADIENT } from '../src/lib/heat.ts';
+import { zoneBlocks } from '../src/components/Ladder.tsx';
+import { matrixAlpha } from '../src/chart/heatLayer.ts';
+
+describe('matrix heat (v1 colour scale)', () => {
+  it('hits the v1 stops exactly and clamps outside [0, 1]', () => {
+    expect(viridis(0)).toEqual([68, 1, 84]);
+    expect(viridis(0.5)).toEqual([33, 145, 140]);
+    expect(viridis(1)).toEqual([253, 231, 37]);
+    expect(viridis(-3)).toEqual(viridis(0));
+    expect(viridis(9)).toEqual(viridis(1));
+    expect(viridis(NaN)).toEqual(viridis(0));
+  });
+  it('gets brighter as intensity rises (perceived luminance increases)', () => {
+    const lum = (t: number) => { const [r, g, b] = viridis(t); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+    for (let t = 0; t < 1; t += 0.05) expect(lum(t + 0.05)).toBeGreaterThan(lum(t));
+  });
+  it('interpolates between stops', () => {
+    expect(viridis(0.125)).toEqual([64, 42, 112]);
+    expect(VIRIDIS_GRADIENT).toContain('rgb(253, 231, 37) 100%');
+    expect(VIRIDIS).toHaveLength(5);
+  });
+  it('chart cells fade toward clear at low intensity but never hide candles', () => {
+    expect(matrixAlpha(0)).toBeCloseTo(0.12);
+    expect(matrixAlpha(1)).toBeCloseTo(0.72);
+    expect(matrixAlpha(2)).toBeCloseTo(0.72);
+  });
+  it('zone blocks group contiguous rows and keep each run’s peak', () => {
+    const rows = [0.9, 0.95, 0.7, 0.5, 0.1, 0.2, 0.88].map((intensity) => ({ intensity, zone: zoneOf(intensity) }));
+    expect(zoneBlocks(rows)).toEqual([
+      { zone: 'terminal', from: 0, to: 1, peak: 0.95 },
+      { zone: 'friction', from: 2, to: 2, peak: 0.7 },
+      { zone: 'transit', from: 3, to: 3, peak: 0.5 },
+      { zone: 'void', from: 4, to: 5, peak: 0.2 },
+      { zone: 'terminal', from: 6, to: 6, peak: 0.88 },
+    ]);
+    expect(zoneBlocks([])).toEqual([]);
+  });
+});

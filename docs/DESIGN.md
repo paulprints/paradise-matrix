@@ -25,7 +25,7 @@ Other v1 problems: no data contract (dividend-adjusted vs raw prices depending o
 6. **Confirmed by default, developing on request.** Confirmed levels come from the last complete bar and don't move all session. Developing levels come from the forming bar, are drawn dashed, and are disabled in lookback (they would leak the future).
 7. **Lookback is a moment in time.** `asOf` is an instant; every timeframe uses the last bar complete at that instant.
 8. **Market Profile is its own source.** TPO POC/VAH/VAL for the prior completed D/W/M period, built from 30-minute bars, labelled separately, never merged into a Drummond line.
-9. **Heat is presentation and is honest.** Kernel width = 0.3 × the finest frame's average range (never tick size). Weights M 3 / W 2 / D 1 / 1H 0.75 / 30m 0.6 / 15m 0.5; developing ×0.5. Fixed scale: three coincident levels of the heaviest frame in view fill it. Every band lists its contributors. Zone names (Terminal/Friction/Transit/Void) describe confluence only.
+9. **Heat is presentation and is honest.** Kernel width = 0.3 × the finest frame's average range (never tick size). Weights M 3 / W 2 / D 1 / 1H 0.75 / 30m 0.6 / 15m 0.5; developing ×0.5. Fixed scale: three coincident levels of the heaviest frame in view fill it. Every band lists its contributors. Zone names (Terminal/Friction/Transit/Void) describe confluence only. Two renderings of the same values, chosen in Options and saved in the URL: **Matrix** (default), v1's viridis colour scale as solid cells, purple for little overlap and yellow for the heaviest; and **Halftone**, ink dots sized by intensity. Unlike v1, Matrix percentages are on the fixed scale, not relative to the brightest row.
 10. **Facts, not forecasts.** v1's market type, R-vals and structure were undefined or buggy. v2 shows only derived facts: location among the structure levels, pivot direction run, consecutive closes vs the pivot drawn on their bar. Trend/congestion/exhaustion return only with written rules and outcome tests (audit step 7).
 11. **Naming at one edge.** The engine keeps exact vendor keys for traceability; `apps/server/src/labels.ts` is the only place public names exist. A test fails if a vendor name reaches a response.
 
@@ -40,7 +40,7 @@ We build on Lightweight Charts 5.2.1 (Apache-2.0, see NOTICE) instead of re-impl
 
 | Layer | Depth | What it draws |
 |---|---|---|
-| `HeatLayer` | bottom | Halftone heat. One dot column per bar, thinned so dots stay about 7px apart. Each column uses the levels valid at that bar's time (a sweep-built timeline of constant intervals). Dots are batched into 8 radius buckets, so a frame is 8 fills. |
+| `HeatLayer` | bottom | Heat in Matrix (solid viridis cells about 3×4px, 32 colour buckets; opacity rises with intensity so candles stay readable) or Halftone style. One dot column per bar, thinned so dots stay about 7px apart. Each column uses the levels valid at that bar's time (a sweep-built timeline of constant intervals). Dots are batched into 8 radius buckets, so a frame is 8 fills. |
 | `LevelsLayer` | bottom + top | Each level as a step across exactly its validity window. Width encodes timeframe (M thickest), colour encodes group, dashes mark developing levels, dots mark profile. Current levels get collision-free labels in a reserved gutter right of the newest bar. |
 | `DrawingsLayer` | top | Member drawings with hit-testing (cursor feedback through the library's `hitTest`) and selection handles. |
 

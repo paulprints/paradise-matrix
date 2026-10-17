@@ -105,7 +105,7 @@ export function App() {
               status={draw.status} count={draw.drawings.length}
             />
             <div className="chart-wrap">
-              <ChartView state={chart.state} groups={view.groups} heat={view.heat} theme={theme} onInspect={setRow} onNeedMore={onNeedMore} onReady={setHandles} />
+              <ChartView state={chart.state} groups={view.groups} heat={view.heat} heatStyle={view.heatStyle} theme={theme} onInspect={setRow} onNeedMore={onNeedMore} onReady={setHandles} />
               {draw.textPrompt && (
                 <input
                   className="text-prompt" style={{ left: draw.textPrompt.x, top: draw.textPrompt.y - 14 }} autoFocus maxLength={200}
@@ -115,13 +115,13 @@ export function App() {
                 />
               )}
             </div>
-            <Inspector data={chart.state} resolve={resolveChart} row={row} title="Read the chart" hint="Point at the chart to see which levels build the heat at that price and time." />
+            <Inspector data={chart.state} resolve={resolveChart} heatStyle={view.heatStyle} row={row} title="Read the chart" hint="Point at the chart to see which levels build the heat at that price and time." />
           </div>
         ) : <div className="signin"><p className="dim">{error ? 'Nothing to show yet.' : `Loading ${view.symbol}…`}</p></div>
       ) : ladder.data ? (
         <div className="main">
-          <Ladder data={ladder.data} levels={ladderLevels} heat={view.heat} zoom={view.zoom} onZoom={(zoom) => setView({ zoom })} onInspect={setRow} />
-          <Inspector data={ladder.data} resolve={resolveLadder} row={row} />
+          <Ladder data={ladder.data} levels={ladderLevels} heat={view.heat} heatStyle={view.heatStyle} zoom={view.zoom} onZoom={(zoom) => setView({ zoom })} onInspect={setRow} />
+          <Inspector data={ladder.data} resolve={resolveLadder} heatStyle={view.heatStyle} row={row} />
         </div>
       ) : (
         <div className="signin"><p className="dim">{error ? 'Nothing to show yet.' : `Loading ${view.symbol}…`}</p></div>

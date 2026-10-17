@@ -3,7 +3,7 @@
  * owns the data; the chart reads this object on every frame without re-render.
  */
 import type { Timeframe } from '@paradise/contract';
-import { bandwidthFor, referenceScore } from '../lib/heat.ts';
+import { bandwidthFor, referenceScore, type HeatStyle } from '../lib/heat.ts';
 import type { Interval, Segment } from './state.ts';
 import { buildTimeline } from './state.ts';
 import type { Palette } from './theme.ts';
@@ -16,6 +16,7 @@ export class RenderModel {
   bandwidth = 1;
   reference = 3;
   heat = true;
+  heatStyle: HeatStyle = 'matrix';
   tick = 0.01;
   tz = 'America/New_York';
   palette!: Palette;

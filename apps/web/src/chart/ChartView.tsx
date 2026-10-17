@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { CandlestickSeries, createChart, CrosshairMode, type IChartApi, type ISeriesApi, type MouseEventParams, type Time, type UTCTimestamp } from 'lightweight-charts';
 import type { LevelGroup } from '@paradise/contract';
-import { contribution, zoneOf, type HeatRow } from '../lib/heat.ts';
+import { contribution, zoneOf, type HeatRow, type HeatStyle } from '../lib/heat.ts';
 import { decimalsForTick, formatBarTime, formatPrice, formatTick } from '../lib/format.ts';
 import { HeatLayer } from './heatLayer.ts';
 import { LevelsLayer } from './levelsLayer.ts';
@@ -21,6 +21,7 @@ interface Props {
   state: ChartState;
   groups: LevelGroup[];
   heat: boolean;
+  heatStyle: HeatStyle;
   theme: string;
   onInspect: (row: HeatRow | null) => void;
   onNeedMore: () => void;
@@ -53,7 +54,7 @@ const candleColors = (P: Palette) => ({
   priceLineColor: P.seal,
 });
 
-export function ChartView({ state, groups, heat, theme, onInspect, onNeedMore, onReady }: Props) {
+export function ChartView({ state, groups, heat, heatStyle, theme, onInspect, onNeedMore, onReady }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const h = useRef<{ chart: IChartApi; series: ISeriesApi<'Candlestick'>; model: RenderModel; heat: HeatLayer; levels: LevelsLayer } | null>(null);
   const shown = useRef<{ symbol: string; tf: string; first: number; times: number[] } | null>(null);
@@ -162,11 +163,12 @@ export function ChartView({ state, groups, heat, theme, onInspect, onNeedMore, o
     m.tick = tick;
     m.tz = tz;
     m.heat = heat;
+    m.heatStyle = heatStyle;
     const finest = state.frames[state.frames.length - 1];
     m.setSegments(state.segments.filter((s) => groups.includes(s.key.group)), finest?.atr ?? null);
     c.heat.invalidate();
     c.levels.invalidate();
-  }, [state, groups, heat]);
+  }, [state, groups, heat, heatStyle]);
 
   return <div ref={box} className="chart-box" />;
 }
