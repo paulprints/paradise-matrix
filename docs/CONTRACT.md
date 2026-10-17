@@ -13,6 +13,13 @@ All routes except `/health` and `/api/auth/login` require `Authorization: Bearer
 | POST | `/api/chart` | `ChartRequest` | `ChartResponse` (candles + level history) |
 | GET | `/api/drawings` | `?symbol` | `DrawingsResponse` (yours, for that instrument) |
 | PUT | `/api/drawings` | `{symbol, drawings}` | `DrawingsResponse` (replaces the set) |
+| POST | `/api/shares` | `{title, config: ShareConfig, drawings}` | 201 `{share}` with both link keys (200 per owner) |
+| GET | `/api/shares` | | `{shares}` (yours, with keys) |
+| GET | `/api/shares/:id` | `?k=<key>` (owners need none) | `ShareOpenResponse` `{share, role, drawings}`; 404 without access |
+| PATCH | `/api/shares/:id` | `{title?, locked?, rotate?: 'view'\|'edit', config?}` | `{share}`; owner only (404 otherwise) |
+| DELETE | `/api/shares/:id` | | 204; owner only; closes the live room |
+| POST | `/api/shares/:id/copy` | `?k=<key>` | `{copied, skipped, symbol}`: appends the drawings to yours, new ids, within the 500 limit |
+| WS | `/api/live` | see *Live collaboration* | |
 | GET | `/api/admin/users` | | `{users}` |
 | POST | `/api/admin/users` | `{username, password, isAdmin?}` | 201 `{user}` |
 | PATCH | `/api/admin/users/:id` | `{password?, isAdmin?}` | `{user}` |
@@ -56,6 +63,31 @@ The response carries `bars` (`{t,o,h,l,c,v,complete}`), `keys` (level descriptio
 **Incremental updates.** With `since`, only bars with `t ≥ since` and segments whose window ends after `since` are returned. The client keeps everything else, because a segment that ended before `since` never changes. A test proves the merged result equals a full load. The web app polls with `since` = start of its newest bar, every 5 s (1m) up to 2 min (W/M).
 
 **Drawings** are stored per member and per *resolved* instrument (`NQ`, `/NQ` and `NQ=F` share). Kinds: `trend` (optional right extension), `hline`, `vline`, `rect`, `text` (≤200 chars), `brush` (≤2000 points). Each has an `id` and a colour (`paper`, `ink`, `seal`, `alert`, `sky`). Limit: 500 per instrument. Anchors are `{t: unix seconds, p: price}`.
+
+## Shared charts
+
+A share is one instrument (`config.symbol` never changes, even when the owner saves a new starting view), a starting view, two link keys and a set of versioned drawings. Links are `/c/<id>?k=<key>`; members must be signed in. The key decides the role: owner (no key needed), editor (edit key) or viewer (view key). Keys are only ever sent to the owner. Rotating a key revokes its links immediately, including open connections. A locked share is read-only for everyone, owner included.
+
+### Live collaboration (`/api/live`)
+
+WebSocket, JSON messages (`LiveClientMessage` / `LiveServerMessage`).
+
+1. Connect, then send `{type:'auth', token, share, key?}` within 5 s. The token goes in the message, never the URL (proxies log URLs). Browsers' `Origin` must be in `ALLOWED_ORIGINS`.
+2. Server answers `welcome {you, peers, drawings, presenter, share}`, and tells the room `peer {event:'join'}`.
+3. Then:
+
+| Client → server | Server → others | Server → sender |
+|---|---|---|
+| `ops {ops: LiveOp[]}` (≤100) | `ops {by, ops}` (accepted only) | `reject {ops, reason}`: the stored state of every refused op |
+| `presence {cursor, view?}` (≤30/s; extras dropped) | `presence {from, cursor, view?}` | |
+| `present {on}` | `present {presenter}` (everyone, sender included) | |
+| `ping` | | `pong` |
+
+Owner changes arrive as `share {share}`. Close codes: `4401` sign-in required or expired, `4403` access revoked, `4404` share not found or deleted (clients don't retry these); anything else, reconnect with backoff. The server pings every 25 s.
+
+**Convergence.** Each drawing carries `v` (bumped on every edit) and `n` (random). `stampWins` in the contract decides between two states: higher `v` wins, equal `v` → lower `n`. Deletes are tombstones (`del`), so a late copy can't resurrect a drawing. The server applies ops one chart at a time, in order, and stores only winners. Not acknowledging accepted ops is deliberate: after reconnecting, the client resends whatever still beats the server's copy, and the server rejects the rest with its state.
+
+**Limits.** 500 live drawings per chart, 100 ops per message, an edit budget of 200 ops per 10 s per connection (`LIVE_OPS_BUDGET`; over-budget ops are rejected with the stored state, and the browser paces itself to stay under it), 256 KB per message.
 
 ## Time
 

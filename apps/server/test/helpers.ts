@@ -9,8 +9,15 @@ import { UserStore } from '../src/auth/db.ts';
 import { createMarket } from '../src/data/market.ts';
 import type { Provider } from '../src/data/providers.ts';
 import { PUBLIC_NAMES } from '../src/labels.ts';
+import { LiveHub } from '../src/shares/live.ts';
+import { SharesStore } from '../src/shares/store.ts';
 
 export { readJson };
+
+export const SHARE_CONFIG: import('@paradise/contract').ShareConfig = {
+  symbol: 'qqq', chartTf: '5m', timeframes: ['D', '1H', '15m'], displacement: 1,
+  developing: false, profile: true, heat: true, heatStyle: 'matrix', groups: ['structure', 'range'],
+};
 export const at = (s: string) => Date.parse(s) / 1000;
 
 /**
@@ -33,9 +40,12 @@ export const SLUG_TO_PLOT = Object.fromEntries(Object.entries(PUBLIC_NAMES).map(
 export async function startServer(providers: Provider[], now: () => number) {
   const config = loadConfig({ NODE_ENV: 'test', DATA_PROVIDERS: 'yahoo' });
   const store = await UserStore.open(':memory:');
-  const app = createApp({ config, store, market: createMarket(providers, now), now });
+  const shares = await SharesStore.open(store.db);
+  const live = new LiveHub({ config, store, shares });
+  const app = createApp({ config, store, market: createMarket(providers, now), shares, live, now });
   const server = app.listen(0);
   await new Promise((r) => server.once('listening', r));
+  live.attach(server);
   const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   const call = async (method: string, path: string, body?: unknown, token?: string) => {
     const res = await fetch(base + path, {
@@ -45,7 +55,7 @@ export async function startServer(providers: Provider[], now: () => number) {
     const text = await res.text();
     return { status: res.status, body: text ? JSON.parse(text) : null };
   };
-  return { base, store, call, close: async () => { server.close(); await store.close(); } };
+  return { base, store, shares, live, call, close: async () => { live.close(); server.close(); await store.close(); } };
 }
 
 /** Deterministic regular-hours intraday bars (09:30–16:00 ET) for testing and demos. */

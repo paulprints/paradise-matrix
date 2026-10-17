@@ -19,7 +19,7 @@ export interface LoginRecord { username: string; userId?: number | null; ip?: st
 export const toPublic = (u: UserRow): PublicUser => ({ id: u.id, username: u.username, isAdmin: u.is_admin === 1, createdAt: u.created_at });
 
 export class UserStore {
-  private constructor(private readonly db: Database) {}
+  private constructor(readonly db: Database) {}
 
   static async open(path: string): Promise<UserStore> {
     if (path !== ':memory:') mkdirSync(dirname(path), { recursive: true });

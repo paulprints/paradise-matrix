@@ -12,6 +12,10 @@ interface Props {
   onAdmin: () => void;
   onSignOut: () => void;
   loading: boolean;
+  /** On a shared chart the instrument is fixed. */
+  symbolLocked?: boolean;
+  /** Extra controls before the account menu (the Share menu). */
+  share?: ReactNode;
 }
 
 const GROUP_LABELS: Record<LevelGroup, string> = {
@@ -21,8 +25,9 @@ const GROUP_LABELS: Record<LevelGroup, string> = {
   profile: 'Market Profile',
 };
 
-function Popover({ label, children, wide }: { label: string; children: ReactNode; wide?: boolean }) {
+export function Popover({ label, children, wide, onOpen, className }: { label: ReactNode; children: ReactNode | ((close: () => void) => ReactNode); wide?: boolean; onOpen?: () => void; className?: string }) {
   const [open, setOpen] = useState(false);
+  useEffect(() => { if (open) onOpen?.(); }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     if (!open) return;
@@ -35,13 +40,13 @@ function Popover({ label, children, wide }: { label: string; children: ReactNode
   }, [open]);
   return (
     <div className="pop" ref={ref}>
-      <button className="btn quiet" aria-expanded={open} onClick={() => setOpen(!open)}>{label}</button>
-      {open && <div className={`pop-panel ${wide ? 'help-panel' : ''}`} role="dialog" aria-label={label}>{children}</div>}
+      <button className={`btn quiet ${className ?? ''}`} aria-expanded={open} onClick={() => setOpen(!open)}>{label}</button>
+      {open && <div className={`pop-panel ${wide ? 'help-panel' : ''}`} role="dialog" aria-label={typeof label === 'string' ? label : undefined}>{typeof children === 'function' ? children(() => setOpen(false)) : children}</div>}
     </div>
   );
 }
 
-export function TopBar({ view, setView, anchors, user, theme, onTheme, onAdmin, onSignOut, loading }: Props) {
+export function TopBar({ view, setView, anchors, user, theme, onTheme, onAdmin, onSignOut, loading, symbolLocked, share }: Props) {
   const [symbol, setSymbol] = useState(view.symbol);
   useEffect(() => setSymbol(view.symbol), [view.symbol]);
 
@@ -60,10 +65,10 @@ export function TopBar({ view, setView, anchors, user, theme, onTheme, onAdmin, 
   return (
     <header className="topbar">
       <div className="wordmark">Paradise<span>Matrix</span></div>
-      <form className="field" onSubmit={(e) => { e.preventDefault(); if (symbol.trim()) setView({ symbol: symbol.trim().toUpperCase(), asOf: null }); }}>
+      <form className="field" onSubmit={(e) => { e.preventDefault(); if (!symbolLocked && symbol.trim()) setView({ symbol: symbol.trim().toUpperCase(), asOf: null }); }}>
         <label htmlFor="sym" className="sr-only">Symbol</label>
-        <input id="sym" value={symbol} onChange={(e) => setSymbol(e.target.value)} spellCheck={false} autoComplete="off" placeholder="QQQ, NQ, ES…" />
-        <button className="btn quiet" type="submit" style={{ padding: '2px 6px' }}>Load</button>
+        <input id="sym" value={symbol} onChange={(e) => setSymbol(e.target.value)} spellCheck={false} autoComplete="off" placeholder="QQQ, NQ, ES…" readOnly={symbolLocked} title={symbolLocked ? 'A shared chart is about one instrument' : undefined} />
+        {!symbolLocked && <button className="btn quiet" type="submit" style={{ padding: '2px 6px' }}>Load</button>}
       </form>
       <div className="seg" role="group" aria-label="View">
         <button aria-pressed={view.view === 'chart'} onClick={() => setView({ view: 'chart' })}>Chart</button>
@@ -97,6 +102,7 @@ export function TopBar({ view, setView, anchors, user, theme, onTheme, onAdmin, 
       </div>}
       {view.view === 'chart' && <span className="stamp muted">{loading ? 'Live, updating' : 'Live'}</span>}
       <div className="spacer" />
+      {share}
       <Popover label="Options">
         <h4>Show</h4>
         {(Object.keys(GROUP_LABELS) as LevelGroup[]).filter((g) => g !== 'profile').map((g) => (
@@ -130,7 +136,7 @@ export function TopBar({ view, setView, anchors, user, theme, onTheme, onAdmin, 
         <p><strong>Heat.</strong> Ink density shows how many levels overlap, weighted by timeframe (M 3, W 2, D 1). The scale is fixed by the frames you show (three overlapping levels of the heaviest frame fill it), so a quiet market looks quiet. Point at a band to see exactly which levels build it.</p>
         <p><strong>Timeframes.</strong> Pick one, or stack several to see higher-timeframe levels together.</p>
         <p><strong>Look back.</strong> Step to an earlier completed bar to see the levels as they stood at that close. Nothing after that moment is used.</p>
-        <p><strong>Share.</strong> The address bar holds your view; copy it to share exactly what you see.</p>
+        <p><strong>Share.</strong> Use <em>Share</em> to make a shared chart: a view link lets members watch, an edit link lets them draw with you live. Everyone sees each other’s cursors; <em>Present</em> makes everyone follow your view. The address bar also holds your view if you just want to send a bookmark.</p>
       </Popover>
       <Popover label={user.username}>
         <p className="note">Signed in as {user.username}{user.isAdmin ? ' (admin)' : ''}.</p>

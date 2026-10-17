@@ -1,8 +1,12 @@
 /**
  * Drawing tools controller. Pointer input on the chart container is captured
  * while a tool is active (so the chart doesn't pan), and while dragging a
- * selected drawing. Drawings save to the server per member and instrument,
- * debounced, and reload when the symbol changes.
+ * selected drawing.
+ *
+ * Where drawings live is a DrawingSource: your own drawings per instrument
+ * (saved debounced over REST), or a shared chart (every change becomes live
+ * ops; other members' changes arrive through `subscribe`). The tools don't
+ * know which.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Drawing, DrawingColor, DrawingKind } from '@paradise/contract';
@@ -13,21 +17,49 @@ import { DrawingsLayer } from './layer.ts';
 
 export type Tool = 'cursor' | DrawingKind;
 export interface TextPrompt { x: number; y: number; anchor: { t: number; p: number } }
+export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+
+export interface DrawingSource {
+  /** Identity: the drawings reload when it changes. */
+  id: string;
+  editable: boolean;
+  load(signal: AbortSignal): Promise<Drawing[]>;
+  /** Persist a local change (the full new list). */
+  save(next: Drawing[], report: (s: SaveStatus) => void): void;
+  /** Changes made elsewhere (shared charts). */
+  subscribe?(onChange: (drawings: Drawing[]) => void): () => void;
+}
 
 const SAVE_DEBOUNCE_MS = 600;
 
-export function useDrawings(symbol: string, handles: ChartHandles | null, enabled: boolean) {
+/** Your own drawings for one instrument. */
+export function personalSource(symbol: string): DrawingSource {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  return {
+    id: `me:${symbol}`,
+    editable: true,
+    load: (signal) => api.drawings(symbol, signal).then((r) => r.drawings),
+    save: (next, report) => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        report('saving');
+        api.saveDrawings(symbol, next).then(() => report('saved')).catch(() => report('error'));
+      }, SAVE_DEBOUNCE_MS);
+    },
+  };
+}
+
+export function useDrawings(source: DrawingSource | null, handles: ChartHandles | null, enabled: boolean) {
   const [drawings, setDrawingsState] = useState<Drawing[]>([]);
   const [tool, setTool] = useState<Tool>('cursor');
   const [color, setColor] = useState<DrawingColor>('seal');
   const [selected, setSelected] = useState<string | null>(null);
   const [textPrompt, setTextPrompt] = useState<TextPrompt | null>(null);
-  const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+  const [status, setStatus] = useState<SaveStatus>('idle');
+  const editable = !!source?.editable;
   const layer = useRef<DrawingsLayer | null>(null);
-  const live = useRef({ drawings, tool, color, selected, symbol });
-  live.current = { drawings, tool, color, selected, symbol };
-  const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const loadedFor = useRef<string | null>(null);
+  const live = useRef({ drawings, tool, color, selected, source, editable });
+  live.current = { drawings, tool, color, selected, source, editable };
 
   const sync = useCallback((d: Drawing[], sel = live.current.selected) => {
     if (!layer.current) return;
@@ -36,29 +68,36 @@ export function useDrawings(symbol: string, handles: ChartHandles | null, enable
     layer.current.invalidate();
   }, []);
 
-  /** Change drawings and schedule a save. */
+  /** Change drawings and persist through the source. */
   const commit = useCallback((next: Drawing[]) => {
+    const src = live.current.source;
+    if (!src?.editable) return;
+    live.current.drawings = next;
     setDrawingsState(next);
     sync(next);
-    if (saveTimer.current) clearTimeout(saveTimer.current);
-    const sym = live.current.symbol;
-    saveTimer.current = setTimeout(() => {
-      setStatus('saving');
-      api.saveDrawings(sym, next).then(() => setStatus('saved')).catch(() => setStatus('error'));
-    }, SAVE_DEBOUNCE_MS);
+    src.save(next, setStatus);
   }, [sync]);
 
-  // Load per symbol (only once signed in and on the chart).
+  // Load from the source (only once signed in and on the chart), and follow changes made elsewhere.
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !source) return;
     const ctrl = new AbortController();
-    loadedFor.current = null;
     setSelected(null);
-    api.drawings(symbol, ctrl.signal)
-      .then((r) => { loadedFor.current = symbol; setDrawingsState(r.drawings); sync(r.drawings, null); setStatus('idle'); })
+    source.load(ctrl.signal)
+      .then((d) => { if (!ctrl.signal.aborted) { live.current.drawings = d; setDrawingsState(d); sync(d, null); setStatus('idle'); } })
       .catch((e) => { if ((e as Error).name !== 'AbortError') setStatus('error'); });
-    return () => ctrl.abort();
-  }, [symbol, sync, enabled]);
+    const unsubscribe = source.subscribe?.((d) => {
+      live.current.drawings = d;
+      setDrawingsState(d);
+      const sel = live.current.selected && d.some((x) => x.id === live.current.selected) ? live.current.selected : null;
+      if (sel !== live.current.selected) setSelected(sel);
+      sync(d, sel);
+    });
+    return () => { ctrl.abort(); unsubscribe?.(); };
+  }, [source, sync, enabled]);
+
+  // Read-only: no tools.
+  useEffect(() => { if (!editable) { setTool('cursor'); setTextPrompt(null); } }, [editable]);
 
   // Attach the layer to the chart.
   useEffect(() => {
@@ -97,7 +136,7 @@ export function useDrawings(symbol: string, handles: ChartHandles | null, enable
     const capture = (e: PointerEvent) => { e.preventDefault(); e.stopPropagation(); el.setPointerCapture(e.pointerId); };
 
     const down = (e: PointerEvent) => {
-      if (!layer.current || e.button !== 0) return;
+      if (!layer.current || e.button !== 0 || !live.current.editable) return;
       const pt = local(e);
       if (!pt) return;
       const anchor = L().unproject(pt);
@@ -194,7 +233,7 @@ export function useDrawings(symbol: string, handles: ChartHandles | null, enable
   // Keyboard: Delete removes the selection, Escape cancels.
   useEffect(() => {
     const key = (e: KeyboardEvent) => {
-      if ((e.target as HTMLElement)?.closest('input, textarea, select')) return;
+      if ((e.target as HTMLElement)?.closest('input, textarea, select') || !live.current.editable) return;
       const { selected: sel, drawings: ds } = live.current;
       if ((e.key === 'Delete' || e.key === 'Backspace') && sel) { commit(ds.filter((d) => d.id !== sel)); setSelected(null); e.preventDefault(); }
       else if (e.key === 'Escape') { setTool('cursor'); setSelected(null); setTextPrompt(null); }
@@ -205,7 +244,7 @@ export function useDrawings(symbol: string, handles: ChartHandles | null, enable
 
   const selectedDrawing = drawings.find((d) => d.id === selected) ?? null;
   return {
-    drawings, tool, setTool, color, selected, selectedDrawing, status, textPrompt,
+    drawings, tool, setTool, color, selected, selectedDrawing, status, textPrompt, editable,
     setColor: (c: DrawingColor) => {
       setColor(c);
       if (selected) commit(drawings.map((d) => (d.id === selected ? { ...d, color: c } : d)));
