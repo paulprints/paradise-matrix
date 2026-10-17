@@ -47,3 +47,28 @@ export async function startServer(providers: Provider[], now: () => number) {
   };
   return { base, store, call, close: async () => { server.close(); await store.close(); } };
 }
+
+/** Deterministic regular-hours intraday bars (09:30–16:00 ET) for testing and demos. */
+export function syntheticIntraday(dates: string[], spanMin: 1 | 5 | 15 | 30, base = 600): RawBar[] {
+  const out: RawBar[] = [];
+  let k = 0;
+  for (const date of dates) {
+    const open = zonedToUnix(date, 9, 30, 'America/New_York');
+    for (let m = 0; m < 390; m += spanMin, k++) {
+      const c = base + Math.sin(k / 7) * 3 + Math.cos(k / 23) * 5 + k * 0.01;
+      const o = base + Math.sin((k - 1) / 7) * 3 + Math.cos((k - 1) / 23) * 5 + (k - 1) * 0.01;
+      out.push({ t: open + m * 60, o, h: Math.max(o, c) + 0.4, l: Math.min(o, c) - 0.4, c, v: 1000 });
+    }
+  }
+  return out;
+}
+
+/** Aggregate fine bars into coarser ones (same session grid). */
+export function aggregate(rows: RawBar[], factor: number): RawBar[] {
+  const out: RawBar[] = [];
+  for (let i = 0; i + factor <= rows.length; i += factor) {
+    const g = rows.slice(i, i + factor);
+    out.push({ t: g[0]!.t, o: g[0]!.o, h: Math.max(...g.map((x) => x.h)), l: Math.min(...g.map((x) => x.l)), c: g[g.length - 1]!.c, v: g.reduce((s, x) => s + x.v, 0) });
+  }
+  return out;
+}

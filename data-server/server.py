@@ -27,6 +27,8 @@ API_KEY = os.environ.get("DATA_API_KEY", "").strip()
 
 # timeframe -> (yfinance interval, period). Intraday periods are Yahoo's maximums.
 TIMEFRAMES = {
+    "1M": ("1m", "7d"),
+    "5M": ("5m", "60d"),
     "15M": ("15m", "60d"),
     "30M": ("30m", "60d"),
     "1H": ("60m", "730d"),

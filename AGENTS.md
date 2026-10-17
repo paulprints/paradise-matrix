@@ -8,6 +8,8 @@
 6. **One provider per response.** Don't merge timeframes from different providers.
 7. **Names live in `apps/server/src/labels.ts` only.** Vendor plot names must never reach a response (tested).
 8. **Facts, not forecasts.** Don't add trend/exhaustion/reversal claims without written rules and outcome tests.
-9. Run `npm run check` before committing.
+9. **Chart coordinates go through `apps/web/src/chart/coords.ts`.** The charting library converts only whole bar indexes. Never call `logicalToCoordinate` with a fractional value.
+10. Keep the Lightweight Charts attribution logo on (licence requirement; see NOTICE).
+11. Run `npm run check` before committing.
 
-Map: `packages/contract` (API types) → `packages/engine` (formulas.ts table, frame.ts source/display, profile.ts TPO) → `apps/server` (data/: providers, bars, calendar, instruments, market cache; levels.ts orchestration; app.ts routes; auth/) → `apps/web` (lib/heat.ts presentation, components/Ladder.tsx).
+Map: `packages/contract` (API types) → `packages/engine` (formulas.ts table, frame.ts source/display, profile.ts TPO) → `apps/server` (data/: providers, bars, calendar, instruments, market cache; levels.ts orchestration; app.ts routes; auth/) → `apps/web` (lib/heat.ts presentation; chart/: state.ts merge and timeline, time.ts time↔index, coords.ts, heatLayer/levelsLayer canvas primitives, ChartView.tsx; drawings/: geometry, layer, useDrawings; components/Ladder.tsx). Server chart history: `apps/server/src/chart.ts`.

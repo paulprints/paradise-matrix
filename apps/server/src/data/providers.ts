@@ -21,7 +21,12 @@ export class ProviderError extends Error {
 
 type FetchLike = (url: string, init?: RequestInit) => Promise<Response>;
 
+/** Longest span one bar of each timeframe can cover — bounds the session-summary match. */
+const BAR_SPAN_S: Record<Timeframe, number> = { '1m': 60, '5m': 300, '15m': 900, '30m': 1800, '1H': 3600, D: 86_400, W: 7 * 86_400, M: 32 * 86_400 };
+
 const YAHOO_PARAMS: Record<Timeframe, { interval: string; range: string }> = {
+  '1m': { interval: '1m', range: '7d' },
+  '5m': { interval: '5m', range: '60d' },
   '15m': { interval: '15m', range: '60d' },
   '30m': { interval: '30m', range: '60d' },
   '1H': { interval: '60m', range: '730d' },
@@ -43,13 +48,29 @@ export function yahooProvider(fetchImpl: FetchLike = fetch, base = 'https://quer
       if (!r) throw new ProviderError('yahoo', json?.chart?.error?.description ?? `no data for ${symbol}`);
       const ts: number[] = r.timestamp ?? [];
       const q = r.indicators?.quote?.[0] ?? {};
+      const meta = r.meta ?? {};
       const out: RawBar[] = [];
       for (let i = 0; i < ts.length; i++) {
-        const o = q.open?.[i], h = q.high?.[i], l = q.low?.[i], c = q.close?.[i];
-        if (o == null || h == null || l == null || c == null) continue;
-        out.push({ t: ts[i]!, o, h, l, c, v: q.volume?.[i] ?? 0 });
+        let o = q.open?.[i], h = q.high?.[i], l = q.low?.[i], c = q.close?.[i];
+        let note: string | undefined;
+        // Yahoo sometimes publishes the latest bar with open/high/low but a blank close
+        // for a while after the session ends. Its session summary (meta) carries the
+        // real last price for that same session — use it only when the summary's
+        // timestamp falls inside this exact bar.
+        const last = i === ts.length - 1;
+        const price = meta.regularMarketPrice, at = meta.regularMarketTime;
+        if (last && c == null && o != null && h != null && l != null && Number.isFinite(price)
+            && Number.isFinite(at) && at >= ts[i]! && at < ts[i]! + BAR_SPAN_S[tf]) {
+          c = price;
+          h = Math.max(h, price);
+          l = Math.min(l, price);
+          note = `close ${price} taken from Yahoo's session price (bar row had a blank close)`;
+        }
+        // Incomplete rows are passed on as NaN so normalisation drops them WITH a warning.
+        if (o == null || h == null || l == null || c == null) { o = h = l = c = NaN; }
+        out.push({ t: ts[i]!, o, h, l, c, v: q.volume?.[i] ?? 0, ...(note ? { note } : {}) });
       }
-      if (!out.length) throw new ProviderError('yahoo', `empty series for ${symbol} ${tf}`);
+      if (!out.some((b) => Number.isFinite(b.c))) throw new ProviderError('yahoo', `empty series for ${symbol} ${tf}`);
       return out;
     },
   };

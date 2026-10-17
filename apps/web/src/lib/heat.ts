@@ -13,7 +13,7 @@
 import type { Level, Timeframe } from '@paradise/contract';
 
 export const HEAT_VERSION = 'heat@1';
-export const TF_WEIGHT: Record<Timeframe, number> = { M: 3, W: 2, D: 1, '1H': 0.75, '30m': 0.6, '15m': 0.5 };
+export const TF_WEIGHT: Record<Timeframe, number> = { M: 3, W: 2, D: 1, '1H': 0.75, '30m': 0.6, '15m': 0.5, '5m': 0.4, '1m': 0.3 };
 /** Coincident levels of the heaviest frame in view that saturate the scale. */
 export const REFERENCE_COUNT = 3;
 export const KERNEL_ATR_FRACTION = 0.3;
@@ -48,6 +48,12 @@ export interface HeatInput {
 
 const kernel = (u: number) => (Math.abs(u) >= 1 ? 0 : (1 - u * u) ** 2);
 
+/** Weight one level contributes at `price`. Shared by the ladder and the chart. */
+export function contribution(tf: Timeframe, developing: boolean, levelPrice: number, price: number, bandwidth: number): number {
+  const k = kernel((price - levelPrice) / bandwidth);
+  return k <= 0 ? 0 : TF_WEIGHT[tf] * k * (developing ? 0.5 : 1);
+}
+
 export function computeHeat({ levels, min, max, rows = 200, bandwidth }: HeatInput): HeatRow[] {
   if (!(max > min) || !(bandwidth > 0) || rows < 2) return [];
   const priced = levels.filter((l): l is Level & { price: number } => l.state === 'active' && l.price !== null);
@@ -59,9 +65,8 @@ export function computeHeat({ levels, min, max, rows = 200, bandwidth }: HeatInp
     let score = 0;
     const contributors: HeatRow['contributors'] = [];
     for (const l of priced) {
-      const k = kernel((price - l.price) / bandwidth);
-      if (k <= 0) continue;
-      const w = TF_WEIGHT[l.tf] * k * (l.basis === 'developing' ? 0.5 : 1);
+      const w = contribution(l.tf, l.basis === 'developing', l.price, price, bandwidth);
+      if (w <= 0) continue;
       score += w;
       contributors.push({ id: l.id, weight: w });
     }

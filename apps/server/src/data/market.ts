@@ -6,7 +6,7 @@ import type { Timeframe } from '@paradise/contract';
 import type { RawBar } from './bars.ts';
 import type { Provider } from './providers.ts';
 
-const TTL_S: Record<Timeframe, number> = { '15m': 30, '30m': 45, '1H': 60, D: 120, W: 300, M: 600 };
+const TTL_S: Record<Timeframe, number> = { '1m': 10, '5m': 15, '15m': 30, '30m': 45, '1H': 60, D: 120, W: 300, M: 600 };
 const MAX_ENTRIES = 400;
 
 export interface FetchedSet { provider: string; rows: Map<Timeframe, RawBar[]> }

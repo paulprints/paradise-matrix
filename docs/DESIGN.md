@@ -29,6 +29,27 @@ Other v1 problems: no data contract (dividend-adjusted vs raw prices depending o
 10. **Facts, not forecasts.** v1's market type, R-vals and structure were undefined or buggy. v2 shows only derived facts: location among the structure levels, pivot direction run, consecutive closes vs the pivot drawn on their bar. Trend/congestion/exhaustion return only with written rules and outcome tests (audit step 7).
 11. **Naming at one edge.** The engine keeps exact vendor keys for traceability; `apps/server/src/labels.ts` is the only place public names exist. A test fails if a vendor name reaches a response.
 
+## The chart (v2.1)
+
+How TradingView renders, as seen in its open-source engine, Lightweight Charts:
+- Everything is painted on `<canvas>`, at device-pixel resolution, so 1px lines stay crisp.
+- Time is a bar index. Bars are evenly spaced and gaps (nights, weekends) collapse. Zoom and scroll are just a bar spacing and an offset.
+- Plugins ("primitives") draw at three depths (`bottom`, `normal`, `top`), in CSS-pixel or bitmap-pixel space. They can add axis labels and report what's under the cursor.
+
+We build on Lightweight Charts 5.2.1 (Apache-2.0, see NOTICE) instead of re-implementing scales, pan and zoom, and the crosshair. Our own work is three primitives and the data model:
+
+| Layer | Depth | What it draws |
+|---|---|---|
+| `HeatLayer` | bottom | Halftone heat. One dot column per bar, thinned so dots stay about 7px apart. Each column uses the levels valid at that bar's time (a sweep-built timeline of constant intervals). Dots are batched into 8 radius buckets, so a frame is 8 fills. |
+| `LevelsLayer` | bottom + top | Each level as a step across exactly its validity window. Width encodes timeframe (M thickest), colour encodes group, dashes mark developing levels, dots mark profile. Current levels get collision-free labels in a reserved gutter right of the newest bar. |
+| `DrawingsLayer` | top | Member drawings with hit-testing (cursor feedback through the library's `hitTest`) and selection handles. |
+
+Two library behaviours we work around (observed on 5.2.1, and covered by tests):
+- `logicalToCoordinate` converts only whole indexes. Fractional values return 0, and `coordinateToLogical` rounds. `chart/coords.ts` interpolates between neighbouring bars. Segment windows begin and end between bars, so without this every line collapsed to the left edge.
+- `rightOffsetPixels` is accepted but not applied, so the label gutter is set as a bar count at load.
+
+Measured: zoom frames render within one display refresh (about 35 ms across 2 animation frames at 60 Hz, with 1,000 candles and about 3,800 level segments). The Ladder view remains for a quick single-column read.
+
 ## What was deliberately removed
 
 Market type/R-vals/structure, the tutorial and scenario trainer (they taught "Terminal = high probability reversal"), the price alert, Single vs Cumulative modes (now: choose one or more timeframes), the virtual-scroll grid (the ladder fits the screen; zoom changes span), Tailwind, frontend tick guessing, and v1's request-time logging of password hashes.

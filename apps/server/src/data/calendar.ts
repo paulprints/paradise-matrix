@@ -90,7 +90,7 @@ export function prevTradingDay(cal: ExchangeCalendar, ymd: string): string {
 export const weekKey = (ymd: string) => addDays(ymd, -((weekdayOf(ymd) + 6) % 7));
 export const monthKey = (ymd: string) => ymd.slice(0, 7);
 
-export const INTRADAY_SECONDS: Partial<Record<Timeframe, number>> = { '15m': 900, '30m': 1800, '1H': 3600 };
+export const INTRADAY_SECONDS: Partial<Record<Timeframe, number>> = { '1m': 60, '5m': 300, '15m': 900, '30m': 1800, '1H': 3600 };
 export const isIntraday = (tf: Timeframe) => tf in INTRADAY_SECONDS;
 
 /** Trading dates belonging to a D/W/M period key. */
@@ -137,6 +137,13 @@ export function periodLabel(tf: Timeframe, key: string, cal: ExchangeCalendar, s
   if (tf === 'M') return key;
   const p = localParts(start, cal.timezone);
   return `${p.y}-${pad(p.m)}-${pad(p.d)} ${pad(p.h)}:${pad(p.mi)}`;
+}
+
+/** Most recent trading date whose session closed at least `graceS` seconds before `now`. */
+export function lastClosedSession(cal: ExchangeCalendar, now: number, graceS: number): string {
+  let d = cal.sessionDateOf(now);
+  for (let i = 0; i < 15 && (!cal.isTradingDay(d) || cal.sessionClose(d) + graceS > now); i++) d = prevTradingDay(cal, d);
+  return d;
 }
 
 export function calendarCovers(cal: ExchangeCalendar, sec: number): boolean {

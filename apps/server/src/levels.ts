@@ -6,13 +6,13 @@
 import type { Frame, Level, LevelsRequest, LevelsResponse, Timeframe } from '@paradise/contract';
 import { buildFrame, computeProfile, defaultRowSize, ENGINE_VERSION, PROFILE_VERSION, type EngineLevel } from '@paradise/engine';
 import { COMPLETION_GRACE_S, confirmedIndexAt, displayRef, normalizeBars, type Bar } from './data/bars.ts';
-import { calendarCovers, nextPeriodKey, periodBounds, periodKeyOf, periodLabel, type ExchangeCalendar } from './data/calendar.ts';
+import { calendarCovers, lastClosedSession, nextPeriodKey, periodBounds, periodKeyOf, periodLabel, type ExchangeCalendar } from './data/calendar.ts';
 import { resolveInstrument, type ResolvedInstrument } from './data/instruments.ts';
 import type { Market } from './data/market.ts';
 import { iso } from './data/time.ts';
 import { LOCATION_LABELS, publicName } from './labels.ts';
 
-const ORDER: Timeframe[] = ['M', 'W', 'D', '1H', '30m', '15m'];
+export const ORDER: Timeframe[] = ['M', 'W', 'D', '1H', '30m', '15m', '5m', '1m'];
 const ANCHOR_LIMIT = 150;
 
 export class RequestError extends Error {}
@@ -60,6 +60,12 @@ export async function computeLevels(req: LevelsRequest, deps: LevelsDeps): Promi
     const confirmedIndex = confirmedIndexAt(bars, asOf);
     const last = bars.length - 1;
     const developingIndex = wantDeveloping && last > confirmedIndex && !bars[last]!.complete ? last : null;
+    const staleness: string[] = [];
+    if (live && tf === 'D' && confirmedIndex >= 0) {
+      const expected = lastClosedSession(inst.cal, now, COMPLETION_GRACE_S);
+      const have = bars[confirmedIndex]!.key;
+      if (have < expected) staleness.push(`${set.provider} data is behind: newest complete daily bar is ${have}, but the ${expected} session has closed. Levels use ${have}.`);
+    }
     const f = buildFrame({ bars, displacement, confirmedIndex, developingIndex, lastPrice: lastPrice?.price ?? null });
     const ref = (i: number | null) => (i === null ? null : { time: iso(bars[i]!.t), label: bars[i]!.label });
     const disp = (i: number | null) => {
@@ -78,7 +84,7 @@ export async function computeLevels(req: LevelsRequest, deps: LevelsDeps): Promi
         closesVsPivot: f.facts.closesVsPivot,
       },
       barCount: bars.length,
-      warnings: [...(normWarnings.get(tf) ?? []), ...f.warnings],
+      warnings: [...staleness, ...(normWarnings.get(tf) ?? []), ...f.warnings],
     });
     for (const l of f.levels) levels.push(toPublic(l, tf, bars, inst));
 
@@ -93,7 +99,7 @@ export async function computeLevels(req: LevelsRequest, deps: LevelsDeps): Promi
     .slice(0, finestConfirmed + 1)
     .slice(-ANCHOR_LIMIT)
     .reverse()
-    .map((b) => ({ time: iso(b.t), label: b.label, end: iso(b.end + COMPLETION_GRACE_S) }));
+    .map((b) => ({ time: iso(b.t), label: b.label, end: iso(b.ready) }));
 
   return {
     instrument: {
@@ -128,16 +134,29 @@ function toPublic(l: EngineLevel, tf: Timeframe, bars: Bar[], inst: ResolvedInst
   };
 }
 
+export interface ProfilePeriod {
+  key: string;
+  basis: 'confirmed' | 'developing';
+  source: { start: number; label: string };
+  /** The period the profile applies to (the next one). Null if the calendar can't name it. */
+  display: { start: number; end: number; label: string } | null;
+  values: Array<['VAH' | 'POC' | 'VAL', number]>;
+  rowSize: number;
+}
+
 /**
- * Market Profile for the last completed D/W/M period (applies to the next
- * period, i.e. displacement 1), plus the current period's developing profile.
+ * Market Profile per D/W/M period from intraday bars. A completed period's
+ * profile applies to the NEXT period (displacement 1). `which` picks every
+ * completed period ('all', for chart history) or only the latest ('latest').
+ * The current, unfinished period is included as developing when asked.
  */
-export function profileLevels(
+export function profilePeriods(
   tf: 'D' | 'W' | 'M', intraday: readonly Bar[], inst: ResolvedInstrument, ref: number, developing: boolean, price: number | null,
-): { levels: Level[]; warnings: string[] } {
+  which: 'latest' | 'all' = 'latest',
+): { periods: ProfilePeriod[]; warnings: string[] } {
   const warnings: string[] = [];
   const cal: ExchangeCalendar = inst.cal;
-  if (!intraday.length || price === null) return { levels: [], warnings: ['no intraday bars for profile'] };
+  if (!intraday.length || price === null) return { periods: [], warnings: ['no intraday bars for profile'] };
   const groups = new Map<string, Bar[]>();
   for (const b of intraday) {
     const k = periodKeyOf(cal, tf, b.t);
@@ -146,36 +165,50 @@ export function profileLevels(
   const rowSize = defaultRowSize(price, inst.tick);
   const keys = [...groups.keys()].sort();
   const completed = keys.filter((k) => { const b = periodBounds(cal, tf, k); return b && b.end + COMPLETION_GRACE_S <= ref; });
-  const out: Level[] = [];
+  const periods: ProfilePeriod[] = [];
 
   const emit = (key: string, basis: 'confirmed' | 'developing') => {
     const bounds = periodBounds(cal, tf, key)!;
     const bars = groups.get(key)!;
     if (bars[0]!.t > bounds.start + 3600) {
-      warnings.push(`${tf} profile ${key}: intraday history starts mid-period; skipped`);
+      if (which === 'latest' || basis === 'developing') warnings.push(`${tf} profile ${key}: intraday history starts mid-period; skipped`);
       return;
     }
     const prof = computeProfile(bars, rowSize);
     if (!prof) return;
     const nextKey = nextPeriodKey(cal, tf, key);
     const nb = periodBounds(cal, tf, nextKey);
-    for (const [plot, value] of [['VAH', prof.vah], ['POC', prof.poc], ['VAL', prof.val]] as const) {
-      const n = publicName(plot);
-      out.push({
-        id: `${tf}:${basis}:${n.slug}`, slug: n.slug, label: n.label, group: n.group, family: n.family,
-        tf, state: 'active', price: value, basis,
-        source: { time: iso(bounds.start), label: periodLabel(tf, key, cal, bounds.start), complete: basis === 'confirmed' },
-        display: { time: nb ? iso(nb.start) : null, label: nb ? periodLabel(tf, nextKey, cal, nb.start) : null },
-        displacement: 1,
-        provenance: `${PROFILE_VERSION} row=${rowSize}`,
-      });
-    }
+    periods.push({
+      key, basis, rowSize,
+      source: { start: bounds.start, label: periodLabel(tf, key, cal, bounds.start) },
+      display: nb ? { start: nb.start, end: nb.end, label: periodLabel(tf, nextKey, cal, nb.start) } : null,
+      values: [['VAH', prof.vah], ['POC', prof.poc], ['VAL', prof.val]],
+    });
   };
 
   const lastDone = completed[completed.length - 1];
-  if (lastDone) emit(lastDone, 'confirmed');
-  else warnings.push(`no completed ${tf} period in intraday history for profile`);
+  if (!lastDone) warnings.push(`no completed ${tf} period in intraday history for profile`);
+  for (const k of which === 'all' ? completed : lastDone ? [lastDone] : []) emit(k, 'confirmed');
   const current = keys[keys.length - 1];
   if (developing && current && current !== lastDone) emit(current, 'developing');
-  return { levels: out, warnings };
+  return { periods, warnings };
+}
+
+/** Latest profile levels for /api/levels. */
+export function profileLevels(
+  tf: 'D' | 'W' | 'M', intraday: readonly Bar[], inst: ResolvedInstrument, ref: number, developing: boolean, price: number | null,
+): { levels: Level[]; warnings: string[] } {
+  const { periods, warnings } = profilePeriods(tf, intraday, inst, ref, developing, price, 'latest');
+  const levels: Level[] = periods.flatMap((pp) => pp.values.map(([plot, value]) => {
+    const n = publicName(plot);
+    return {
+      id: `${tf}:${pp.basis}:${n.slug}`, slug: n.slug, label: n.label, group: n.group, family: n.family,
+      tf, state: 'active' as const, price: value, basis: pp.basis,
+      source: { time: iso(pp.source.start), label: pp.source.label, complete: pp.basis === 'confirmed' },
+      display: { time: pp.display ? iso(pp.display.start) : null, label: pp.display?.label ?? null },
+      displacement: 1 as const,
+      provenance: `${PROFILE_VERSION} row=${pp.rowSize}`,
+    };
+  }));
+  return { levels, warnings };
 }

@@ -52,6 +52,14 @@ export class UserStore {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
       );
+      CREATE TABLE IF NOT EXISTS drawings (
+        user_id INTEGER NOT NULL,
+        symbol TEXT NOT NULL,
+        data TEXT NOT NULL,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        PRIMARY KEY (user_id, symbol),
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
     `);
     const cols = await db.all<{ name: string }[]>(`PRAGMA table_info(users)`);
     if (!cols.some((c) => c.name === 'is_admin')) {
@@ -106,6 +114,20 @@ export class UserStore {
     const u = await this.byUsername(username);
     const ok = await bcrypt.compare(password, u?.password_hash ?? dummy());
     return u && ok ? u : null;
+  }
+
+  async getDrawings(userId: number, symbol: string): Promise<{ data: string; updatedAt: string } | null> {
+    const r = await this.db.get<{ data: string; updated_at: string }>('SELECT data, updated_at FROM drawings WHERE user_id = ? AND symbol = ?', userId, symbol);
+    return r ? { data: r.data, updatedAt: r.updated_at } : null;
+  }
+
+  async putDrawings(userId: number, symbol: string, data: string): Promise<string> {
+    await this.db.run(
+      `INSERT INTO drawings (user_id, symbol, data, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+       ON CONFLICT(user_id, symbol) DO UPDATE SET data = excluded.data, updated_at = CURRENT_TIMESTAMP`,
+      userId, symbol, data,
+    );
+    return (await this.getDrawings(userId, symbol))!.updatedAt;
   }
 
   async recordLogin(r: LoginRecord): Promise<void> {

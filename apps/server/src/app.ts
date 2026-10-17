@@ -3,11 +3,12 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import { z } from 'zod';
-import { TIMEFRAMES, type LevelsRequest, type LoginResponse } from '@paradise/contract';
+import { DRAWING_COLORS, DRAWING_LIMITS, TIMEFRAMES, type ChartRequest, type DrawingsResponse, type LevelsRequest, type LoginResponse } from '@paradise/contract';
 import type { Config } from './config.ts';
 import type { UserStore } from './auth/db.ts';
 import { requireAdmin, requireAuth, signToken, type AuthedRequest } from './auth/tokens.ts';
-import { InstrumentError } from './data/instruments.ts';
+import { computeChart } from './chart.ts';
+import { InstrumentError, resolveInstrument } from './data/instruments.ts';
 import { MarketDataError, type Market } from './data/market.ts';
 import { computeLevels, RequestError } from './levels.ts';
 
@@ -21,6 +22,29 @@ const levelsSchema = z.object({
   developing: z.boolean().default(false),
   profile: z.boolean().default(false),
 });
+const tf = z.enum(TIMEFRAMES as [string, ...string[]]);
+const chartSchema = z.object({
+  symbol: z.string().trim().min(1).max(24),
+  chartTf: tf,
+  overlays: z.array(tf).max(8).default([]),
+  displacement: z.union([z.literal(0), z.literal(1)]).default(1),
+  developing: z.boolean().default(false),
+  profile: z.boolean().default(false),
+  bars: z.number().int().min(50).max(5000).optional(),
+  since: z.number().int().min(0).optional(),
+});
+const finite = z.number().finite();
+const anchor = z.object({ t: z.number().int().min(0), p: finite });
+const base = { id: z.string().min(1).max(40), color: z.enum(DRAWING_COLORS) };
+const drawingSchema = z.discriminatedUnion('kind', [
+  z.object({ ...base, kind: z.literal('trend'), a: anchor, b: anchor, extend: z.boolean() }),
+  z.object({ ...base, kind: z.literal('hline'), p: finite }),
+  z.object({ ...base, kind: z.literal('vline'), t: z.number().int().min(0) }),
+  z.object({ ...base, kind: z.literal('rect'), a: anchor, b: anchor }),
+  z.object({ ...base, kind: z.literal('text'), a: anchor, text: z.string().trim().min(1).max(DRAWING_LIMITS.textLength) }),
+  z.object({ ...base, kind: z.literal('brush'), pts: z.array(anchor).min(2).max(DRAWING_LIMITS.brushPoints) }),
+]);
+const drawingsSchema = z.object({ symbol: z.string().trim().min(1).max(24), drawings: z.array(drawingSchema).max(DRAWING_LIMITS.perSymbol) });
 const loginSchema = z.object({ username: z.string().trim().min(1).max(50), password: z.string().min(1).max(200) });
 const newUserSchema = z.object({
   username: z.string().trim().toLowerCase().regex(/^[a-z0-9._-]{3,50}$/, '3–50 chars: letters, digits, . _ -'),
@@ -39,11 +63,11 @@ export function createApp({ config, store, market, now }: AppDeps) {
   app.use(helmet());
   app.use(cors({
     origin: (origin, cb) => cb(null, !origin || config.allowedOrigins.includes(origin)),
-    methods: ['GET', 'POST', 'PATCH', 'DELETE'],
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     maxAge: 600,
   }));
-  app.use(express.json({ limit: '32kb' }));
+  app.use(express.json({ limit: '512kb' })); // drawings with freehand strokes can be a few hundred KB
   app.use('/api', rateLimit({ windowMs: 60_000, limit: 240, standardHeaders: 'draft-7', legacyHeaders: false }));
 
   const auth = requireAuth(store, config.jwtSecret);
@@ -69,6 +93,28 @@ export function createApp({ config, store, market, now }: AppDeps) {
     const body = levelsSchema.safeParse(req.body);
     if (!body.success) return res.status(400).json({ error: 'Invalid request', details: body.error.flatten() });
     res.json(await computeLevels(body.data as LevelsRequest, { market, now }));
+  }));
+
+  app.post('/api/chart', auth, wrap(async (req, res) => {
+    const body = chartSchema.safeParse(req.body);
+    if (!body.success) return res.status(400).json({ error: 'Invalid request', details: body.error.flatten() });
+    res.json(await computeChart(body.data as ChartRequest, { market, now }));
+  }));
+
+  // Drawings are stored per member and per resolved instrument (NQ and /NQ share drawings).
+  app.get('/api/drawings', auth, wrap(async (req, res) => {
+    const symbol = resolveInstrument(String(req.query.symbol ?? '')).symbol;
+    const row = await store.getDrawings(req.user!.id, symbol);
+    const out: DrawingsResponse = { symbol, drawings: row ? JSON.parse(row.data) : [], updatedAt: row?.updatedAt ?? null };
+    res.json(out);
+  }));
+  app.put('/api/drawings', auth, wrap(async (req, res) => {
+    const body = drawingsSchema.safeParse(req.body);
+    if (!body.success) return res.status(400).json({ error: body.error.issues[0]?.message ?? 'Invalid drawings', details: body.error.flatten() });
+    const symbol = resolveInstrument(body.data.symbol).symbol;
+    const updatedAt = await store.putDrawings(req.user!.id, symbol, JSON.stringify(body.data.drawings));
+    const out: DrawingsResponse = { symbol, drawings: body.data.drawings as DrawingsResponse['drawings'], updatedAt };
+    res.json(out);
   }));
 
   const admin = express.Router();

@@ -65,12 +65,27 @@ export function TopBar({ view, setView, anchors, user, theme, onTheme, onAdmin, 
         <input id="sym" value={symbol} onChange={(e) => setSymbol(e.target.value)} spellCheck={false} autoComplete="off" placeholder="QQQ, NQ, ES…" />
         <button className="btn quiet" type="submit" style={{ padding: '2px 6px' }}>Load</button>
       </form>
-      <div className="seg" role="group" aria-label="Timeframes (choose one or stack several)">
-        {TIMEFRAMES.map((tf) => (
-          <button key={tf} aria-pressed={view.timeframes.includes(tf)} onClick={() => toggleTf(tf)}>{tf}</button>
-        ))}
+      <div className="seg" role="group" aria-label="View">
+        <button aria-pressed={view.view === 'chart'} onClick={() => setView({ view: 'chart' })}>Chart</button>
+        <button aria-pressed={view.view === 'ladder'} onClick={() => setView({ view: 'ladder' })}>Ladder</button>
       </div>
-      <div className="asof" role="group" aria-label="Look back">
+      {view.view === 'chart' && (
+        <label className="field compact">
+          <span className="muted">Candles</span>
+          <select value={view.chartTf} onChange={(e) => setView({ chartTf: e.target.value as Timeframe })} aria-label="Candle timeframe">
+            {[...TIMEFRAMES].reverse().map((tf) => <option key={tf} value={tf}>{tf}</option>)}
+          </select>
+        </label>
+      )}
+      <div className="levels-tf">
+        <span className="muted">Levels</span>
+        <div className="seg" role="group" aria-label="Level timeframes (choose one or stack several)">
+          {TIMEFRAMES.map((tf) => (
+            <button key={tf} aria-pressed={view.timeframes.includes(tf)} onClick={() => toggleTf(tf)}>{tf}</button>
+          ))}
+        </div>
+      </div>
+      {view.view === 'ladder' && <div className="asof" role="group" aria-label="Look back">
         <button className="btn quiet" onClick={() => goto(idx + 1)} disabled={!anchors.length || idx >= anchors.length - 1} aria-label="One bar back">‹</button>
         <input
           type="range" min={-1} max={Math.max(0, anchors.length - 1)} value={idx} aria-label="Bars back"
@@ -79,7 +94,8 @@ export function TopBar({ view, setView, anchors, user, theme, onTheme, onAdmin, 
         <button className="btn quiet" onClick={() => goto(idx - 1)} disabled={idx < 0} aria-label="One bar forward">›</button>
         <span className={`stamp ${stamp ? 'past' : ''}`}>{stamp ? `As of ${stamp} close` : loading ? 'Live, updating' : 'Live'}</span>
         {stamp && <button className="btn quiet" onClick={() => goto(-1)}>Back to live</button>}
-      </div>
+      </div>}
+      {view.view === 'chart' && <span className="stamp muted">{loading ? 'Live, updating' : 'Live'}</span>}
       <div className="spacer" />
       <Popover label="Options">
         <h4>Show</h4>
@@ -100,6 +116,8 @@ export function TopBar({ view, setView, anchors, user, theme, onTheme, onAdmin, 
         <p className="note">+1 draws each bar’s levels on the next bar. The arithmetic is identical either way.</p>
       </Popover>
       <Popover label="Help" wide>
+        <p><strong>Chart.</strong> Candles over the heat. Every level is drawn across exactly the bars it applied to, so when a 15m bar closes a new 15m level starts and the old one stays where it was. Thicker lines are higher timeframes. Scroll left for more history.</p>
+        <p><strong>Drawing.</strong> Pick a tool on the left, then click (or drag) on the chart. Select a drawing to move it, recolour it or delete it. Drawings are saved to your account for each symbol.</p>
         <p><strong>Ladder.</strong> Each rule is one level, labelled with its timeframe and price. Gold is the last price.</p>
         <p><strong>Confirmed vs developing.</strong> Confirmed levels come from the last completed bar and don’t move during the session. Developing levels recalculate from the bar still forming.</p>
         <p><strong>Heat.</strong> Ink density shows how many levels overlap, weighted by timeframe (M 3, W 2, D 1). The scale is fixed by the frames you show (three overlapping levels of the heaviest frame fill it), so a quiet market looks quiet. Point at a band to see exactly which levels build it.</p>

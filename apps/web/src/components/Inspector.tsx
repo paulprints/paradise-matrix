@@ -1,8 +1,18 @@
-import type { Frame, Level, LevelsResponse } from '@paradise/contract';
+import type { Frame, Instrument } from '@paradise/contract';
 import { ZONES, type HeatRow } from '../lib/heat.ts';
 import { formatPrice, TF_NAMES } from '../lib/format.ts';
 
-interface Props { data: LevelsResponse; levels: Level[]; row: HeatRow | null }
+/** What the inspector needs from either view (ladder or chart). */
+export interface InspectorContext {
+  instrument: Instrument;
+  frames: Frame[];
+  dataSource: string;
+  engineVersion: string;
+  warnings: string[];
+}
+export interface ResolvedLevel { tf: string; label: string; price: number; developing: boolean; sourceLabel: string }
+
+interface Props { data: InspectorContext; resolve: (id: string) => ResolvedLevel | undefined; row: HeatRow | null; hint?: string; title?: string }
 
 function pivotText(f: Frame): string {
   const d = f.facts.pivotDirection;
@@ -16,8 +26,7 @@ function closesText(f: Frame): string {
   return c.side === 'on' ? 'Closed on the pivot' : `${c.bars} close${c.bars === 1 ? '' : 's'} ${c.side}`;
 }
 
-export function Inspector({ data, levels, row }: Props) {
-  const byId = new Map(levels.map((l) => [l.id, l]));
+export function Inspector({ data, resolve, row, hint, title = 'Read the ladder' }: Props) {
   const tick = data.instrument.tick;
   return (
     <aside className="side" aria-label="Details">
@@ -35,13 +44,13 @@ export function Inspector({ data, levels, row }: Props) {
             {row.contributors.length > 0 && (
               <ul className="contrib" style={{ marginTop: 10 }}>
                 {row.contributors.slice(0, 10).map((c) => {
-                  const l = byId.get(c.id);
+                  const l = resolve(c.id);
                   if (!l) return null;
                   return (
                     <li key={c.id}>
                       <span className="tf-tag">{l.tf}</span>
-                      <span>{l.label}{l.basis === 'developing' ? ' (developing)' : ''}<br /><span className="muted">from {l.source.label}</span></span>
-                      <span className="num">{formatPrice(l.price!, tick)}</span>
+                      <span>{l.label}{l.developing ? ' (developing)' : ''}<br /><span className="muted">from {l.sourceLabel}</span></span>
+                      <span className="num">{formatPrice(l.price, tick)}</span>
                     </li>
                   );
                 })}
@@ -50,8 +59,8 @@ export function Inspector({ data, levels, row }: Props) {
           </>
         ) : (
           <>
-            <h2>Read the ladder</h2>
-            <p className="note">Point at the ladder (or focus it and use the arrow keys) to see which levels build each band.</p>
+            <h2>{title}</h2>
+            <p className="note">{hint ?? 'Point at the ladder (or focus it and use the arrow keys) to see which levels build each band.'}</p>
           </>
         )}
       </section>

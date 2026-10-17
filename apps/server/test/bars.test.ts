@@ -64,8 +64,43 @@ describe('confirmedIndexAt / displayRef', () => {
     expect(displayRef(bars, 3, 'D', XNYS)!.label).toBe('2026-09-08');
     expect(displayRef(bars, 1, 'D', XNYS)!.label).toBe('2026-09-03');
   });
-  it('refuses to name an intraday bar across a session boundary', () => {
+  it('rolls an intraday display bar into the next session open via the calendar', () => {
     const h = normalizeBars([row('2026-09-09T19:30:00Z')], '1H', XNYS, at('2026-09-10T00:00:00Z')).bars;
-    expect(displayRef(h, 1, '1H', XNYS)).toBeNull();
+    const next = displayRef(h, 1, '1H', XNYS)!;
+    expect(next.label).toBe('2026-09-10 09:30');
+    expect(new Date(next.end * 1000).toISOString()).toBe('2026-09-10T14:30:00.000Z');
+    // Friday's last 15m bar displays on Monday's first (over the weekend)
+    const f = normalizeBars([row('2026-09-11T19:45:00Z')], '15m', XNYS, at('2026-09-12T00:00:00Z')).bars;
+    expect(displayRef(f, 1, '15m', XNYS)!.label).toBe('2026-09-14 09:30');
+  });
+  it('gives windows for future D periods', () => {
+    const d = displayRef(bars, 3, 'D', XNYS)!;
+    expect([new Date(d.time * 1000).toISOString(), new Date(d.end * 1000).toISOString()]).toEqual(['2026-09-08T13:30:00.000Z', '2026-09-08T20:00:00.000Z']);
+  });
+});
+
+describe('normalizeBars — provider notes and blank rows', () => {
+  it('surfaces provider notes and counts blank rows as dropped', () => {
+    const rows: RawBar[] = [
+      { ...row('2026-10-14T13:30:00Z'), o: NaN, h: NaN, l: NaN, c: NaN },
+      row('2026-10-15T13:30:00Z'),
+      { ...row('2026-10-16T13:30:00Z'), note: 'close 709.8 taken from session price' },
+    ];
+    const r = normalizeBars(rows, 'D', XNYS, at('2026-10-17T01:25:00Z'));
+    expect(r.bars.map((b) => b.label)).toEqual(['2026-10-15', '2026-10-16']);
+    expect(r.warnings).toContain('1 malformed or off-calendar D row(s) dropped');
+    expect(r.warnings).toContain('D 2026-10-16: close 709.8 taken from session price');
+  });
+});
+
+describe('completion grace scales with timeframe', () => {
+  it('a 5m bar is final a minute after it ends; a daily bar fifteen', () => {
+    const r = normalizeBars([row('2026-09-09T17:00:00Z'), row('2026-09-09T17:05:00Z')], '5m', XNYS, at('2026-09-09T17:06:00Z')).bars;
+    expect(r.map((b) => b.complete)).toEqual([true, false]);
+    expect(new Date(r[0]!.ready * 1000).toISOString()).toBe('2026-09-09T17:06:00.000Z');
+    const one = normalizeBars([row('2026-09-09T17:00:00Z')], '1m', XNYS, at('2026-09-09T17:01:15Z')).bars;
+    expect(one[0]!.complete).toBe(true);
+    const d = normalizeBars([row('2026-09-09T13:30:00Z')], 'D', XNYS, at('2026-09-09T20:10:00Z')).bars;
+    expect(d[0]!.complete).toBe(false);
   });
 });
