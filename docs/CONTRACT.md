@@ -13,12 +13,14 @@ All routes except `/health` and `/api/auth/login` require `Authorization: Bearer
 | POST | `/api/chart` | `ChartRequest` | `ChartResponse` (candles + level history) |
 | GET | `/api/drawings` | `?symbol` | `DrawingsResponse` (yours, for that instrument) |
 | PUT | `/api/drawings` | `{symbol, drawings}` | `DrawingsResponse` (replaces the set) |
-| POST | `/api/shares` | `{title, config: ShareConfig, drawings}` | 201 `{share}` with both link keys (200 per owner) |
-| GET | `/api/shares` | | `{shares}` (yours, with keys) |
-| GET | `/api/shares/:id` | `?k=<key>` (owners need none) | `ShareOpenResponse` `{share, role, drawings}`; 404 without access |
-| PATCH | `/api/shares/:id` | `{title?, locked?, rotate?: 'view'\|'edit', config?}` | `{share}`; owner only (404 otherwise) |
+| POST | `/api/shares` | `{title, config: ShareConfig, drawings, linkAccess?}` | 201 `{share}` (200 per owner) |
+| GET | `/api/shares` | | `{shares}` (yours) |
+| GET | `/api/shares/:id` | | `ShareOpenResponse` `{share, role, drawings}`. First visit adds you to the people list. 403 `{error, details: ShareDenied}` while waiting or if removed; 404 if no such share |
+| PATCH | `/api/shares/:id` | `{title?, locked?, linkAccess?, config?}` | `{share}`; owner only (404 otherwise) |
 | DELETE | `/api/shares/:id` | | 204; owner only; closes the live room |
-| POST | `/api/shares/:id/copy` | `?k=<key>` | `{copied, skipped, symbol}`: appends the drawings to yours, new ids, within the 500 limit |
+| GET | `/api/shares/:id/members` | | `{members: ShareMember[]}`; owner only |
+| PATCH | `/api/shares/:id/members/:userId` | `{role: 'viewer'\|'editor'\|'removed'}` | `{members}`; owner only; open tabs follow at once |
+| POST | `/api/shares/:id/copy` | | `{copied, skipped, symbol}`: appends the drawings to yours, new ids, within the 500 limit |
 | WS | `/api/live` | see *Live collaboration* | |
 | GET | `/api/admin/users` | | `{users}` |
 | POST | `/api/admin/users` | `{username, password, isAdmin?}` | 201 `{user}` |
@@ -66,13 +68,15 @@ The response carries `bars` (`{t,o,h,l,c,v,complete}`), `keys` (level descriptio
 
 ## Shared charts
 
-A share is one instrument (`config.symbol` never changes, even when the owner saves a new starting view), a starting view, two link keys and a set of versioned drawings. Links are `/c/<id>?k=<key>`; members must be signed in. The key decides the role: owner (no key needed), editor (edit key) or viewer (view key). Keys are only ever sent to the owner. Rotating a key revokes its links immediately, including open connections. A locked share is read-only for everyone, owner included.
+A share is one instrument (`config.symbol` never changes, even when the owner saves a new starting view), a starting view, one link (`/c/<id>`), a people list and a set of versioned drawings. Members must be signed in.
+
+Access is the people list, managed by the owner like the members admin page. Opening the link the first time adds you with the share's `linkAccess`: `viewer` (default), `editor`, or `approval` (you're `pending` until the owner lets you in; the waiting page re-checks every 3 s). The owner can set anyone to viewer or editor, or `removed`. Removed people stay listed, so the link doesn't let them back in until the owner restores them. Changing `linkAccess` affects newcomers only. A locked share is read-only for everyone, owner included. Links from the two-link version (`?k=…`) still open; the key is ignored.
 
 ### Live collaboration (`/api/live`)
 
 WebSocket, JSON messages (`LiveClientMessage` / `LiveServerMessage`).
 
-1. Connect, then send `{type:'auth', token, share, key?}` within 5 s. The token goes in the message, never the URL (proxies log URLs). Browsers' `Origin` must be in `ALLOWED_ORIGINS`.
+1. Connect, then send `{type:'auth', token, share}` within 5 s. The token goes in the message, never the URL (proxies log URLs). Browsers' `Origin` must be in `ALLOWED_ORIGINS`.
 2. Server answers `welcome {you, peers, drawings, presenter, share}`, and tells the room `peer {event:'join'}`.
 3. Then:
 
@@ -83,7 +87,7 @@ WebSocket, JSON messages (`LiveClientMessage` / `LiveServerMessage`).
 | `present {on}` | `present {presenter}` (everyone, sender included) | |
 | `ping` | | `pong` |
 
-Owner changes arrive as `share {share}`. Close codes: `4401` sign-in required or expired, `4403` access revoked, `4404` share not found or deleted (clients don't retry these); anything else, reconnect with backoff. The server pings every 25 s.
+Owner changes arrive as `share {share, role}` (your role included, so a promotion or demotion applies without reloading); other members' role changes as `peer {event:'update'}`. The owner's tabs also get `members {members}` whenever someone joins, asks to join, comes online or leaves, or has their access changed. Close codes: `4401` sign-in required or expired, `4403` removed or still waiting, `4404` share not found or deleted (clients don't retry these); anything else, reconnect with backoff. The server pings every 25 s.
 
 **Convergence.** Each drawing carries `v` (bumped on every edit) and `n` (random). `stampWins` in the contract decides between two states: higher `v` wins, equal `v` → lower `n`. Deletes are tombstones (`del`), so a late copy can't resurrect a drawing. The server applies ops one chart at a time, in order, and stores only winners. Not acknowledging accepted ops is deliberate: after reconnecting, the client resends whatever still beats the server's copy, and the server rejects the rest with its state.
 

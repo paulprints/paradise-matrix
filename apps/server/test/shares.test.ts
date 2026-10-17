@@ -79,6 +79,21 @@ describe('shares store', () => {
     expect((await s.shares.drawings(share.id)).length).toBe(DRAWING_LIMITS.perSymbol);
   });
 
+  it('upgrades a database from the two-link version: existing shares open to viewers', async () => {
+    const { UserStore } = await import('../src/auth/db.ts');
+    const { SharesStore } = await import('../src/shares/store.ts');
+    const users = await UserStore.open(':memory:');
+    const owner = await users.create('olduser', 'password-old');
+    await users.db.exec(`CREATE TABLE shared_charts (id TEXT PRIMARY KEY, owner_id INTEGER NOT NULL, title TEXT NOT NULL, config TEXT NOT NULL,
+      view_key TEXT NOT NULL, edit_key TEXT NOT NULL, locked INTEGER NOT NULL DEFAULT 0, created_at DATETIME DEFAULT CURRENT_TIMESTAMP, updated_at DATETIME DEFAULT CURRENT_TIMESTAMP)`);
+    await users.db.run(`INSERT INTO shared_charts (id, owner_id, title, config, view_key, edit_key) VALUES ('Legacy0001', ?, 'Old', ?, 'v', 'e')`, owner.id, JSON.stringify(CONFIG));
+    const upgraded = await SharesStore.open(users.db);
+    expect(await upgraded.get('Legacy0001')).toMatchObject({ title: 'Old', linkAccess: 'viewer' });
+    const fresh = await upgraded.create(owner.id, 'New', CONFIG, []);
+    expect(fresh.linkAccess).toBe('viewer');
+    await users.close();
+  });
+
   it('deleting the owner deletes their shares and drawings', async () => {
     const share = await s.shares.create(bobId, 'Bye', CONFIG, [line('a')]);
     await s.store.remove(bobId);
@@ -90,34 +105,68 @@ describe('shares store', () => {
 describe('share REST', () => {
   const create = async (body: Record<string, unknown> = {}) =>
     (await s.call('POST', '/api/shares', { title: 'Opening drive', config: CONFIG, drawings: [line('a'), line('b', 705)], ...body }, tokA));
+  const setRole = (id: string, userId: number, role: string) => s.call('PATCH', `/api/shares/${id}/members/${userId}`, { role }, tokA);
 
-  it('creates a share from the current view, resolving the symbol; only the owner sees link keys', async () => {
+  it('creates a share from the current view (symbol resolved); one link, viewers by default', async () => {
     const res = await create();
     expect(res.status).toBe(201);
     const share = res.body.share;
-    expect(share).toMatchObject({ title: 'Opening drive', owner: { username: 'alice' }, locked: false, config: { ...CONFIG, symbol: 'QQQ' } });
+    expect(share).toMatchObject({ title: 'Opening drive', owner: { username: 'alice' }, locked: false, linkAccess: 'viewer', config: { ...CONFIG, symbol: 'QQQ' } });
     expect(share.id).toMatch(/^[0-9A-Za-z]{10}$/);
-    expect(share.viewKey).toBeTruthy();
-    expect(share.editKey).not.toBe(share.viewKey);
+    expect(share).not.toHaveProperty('viewKey');
 
     const own = await s.call('GET', `/api/shares/${share.id}`, undefined, tokA);
     expect(own.body.role).toBe('owner');
     expect(own.body.drawings.map((d: Drawing) => d.id)).toEqual(['a', 'b']);
 
-    const asViewer = await s.call('GET', `/api/shares/${share.id}?k=${share.viewKey}`, undefined, tokB);
-    expect(asViewer.body.role).toBe('viewer');
-    expect(asViewer.body.share.viewKey).toBeUndefined();
-    expect(asViewer.body.share.editKey).toBeUndefined();
-    expect((await s.call('GET', `/api/shares/${share.id}?k=${share.editKey}`, undefined, tokB)).body.role).toBe('editor');
+    // Bob opens the link: he's added to the people list as a viewer.
+    expect((await s.call('GET', `/api/shares/${share.id}`, undefined, tokB)).body.role).toBe('viewer');
+    const people = (await s.call('GET', `/api/shares/${share.id}/members`, undefined, tokA)).body.members;
+    expect(people).toMatchObject([{ userId: bobId, username: 'bob', role: 'viewer', online: false }]);
   });
 
-  it('answers 404 without a valid key, and 401 when signed out', async () => {
+  it('the owner chooses what each person can do; removed people can’t come back through the link', async () => {
     const { id } = (await create()).body.share;
-    expect((await s.call('GET', `/api/shares/${id}`, undefined, tokB)).status).toBe(404);
-    expect((await s.call('GET', `/api/shares/${id}?k=wrong`, undefined, tokB)).status).toBe(404);
-    expect((await s.call('GET', `/api/shares/nope?k=x`, undefined, tokB)).status).toBe(404);
+    await s.call('GET', `/api/shares/${id}`, undefined, tokB);
+    expect((await setRole(id, bobId, 'editor')).body.members[0].role).toBe('editor');
+    expect((await s.call('GET', `/api/shares/${id}`, undefined, tokB)).body.role).toBe('editor');
+    await setRole(id, bobId, 'removed');
+    const denied = await s.call('GET', `/api/shares/${id}`, undefined, tokB);
+    expect(denied.status).toBe(403);
+    expect(denied.body).toMatchObject({ error: 'alice removed your access to this chart.', details: { access: 'removed', title: 'Opening drive', owner: 'alice' } });
+    expect((await s.call('POST', `/api/shares/${id}/copy`, undefined, tokB)).status).toBe(404);
+    await setRole(id, bobId, 'viewer');
+    expect((await s.call('GET', `/api/shares/${id}`, undefined, tokB)).status).toBe(200);
+  });
+
+  it('with approval required, newcomers wait until the owner lets them in', async () => {
+    const { id } = (await create({ linkAccess: 'approval' })).body.share;
+    const wait = await s.call('GET', `/api/shares/${id}`, undefined, tokB);
+    expect(wait.status).toBe(403);
+    expect(wait.body).toMatchObject({ error: 'Waiting for alice to let you in.', details: { access: 'pending' } });
+    expect((await s.call('GET', `/api/shares/${id}/members`, undefined, tokA)).body.members[0]).toMatchObject({ username: 'bob', role: 'pending' });
+    await setRole(id, bobId, 'editor');
+    expect((await s.call('GET', `/api/shares/${id}`, undefined, tokB)).body.role).toBe('editor');
+  });
+
+  it('changing link access affects newcomers only', async () => {
+    const { id } = (await create()).body.share;
+    await s.call('GET', `/api/shares/${id}`, undefined, tokB);
+    expect((await s.call('PATCH', `/api/shares/${id}`, { linkAccess: 'editor' }, tokA)).body.share.linkAccess).toBe('editor');
+    expect((await s.call('GET', `/api/shares/${id}`, undefined, tokB)).body.role).toBe('viewer');
+    const carolId = (await s.store.create('carol', 'password-ccc')).id;
+    const tokC = (await s.call('POST', '/api/auth/login', { username: 'carol', password: 'password-ccc' })).body.token;
+    expect((await s.call('GET', `/api/shares/${id}`, undefined, tokC)).body.role).toBe('editor');
+    expect(carolId).toBeGreaterThan(0);
+    expect((await s.call('PATCH', `/api/shares/${id}`, { linkAccess: 'everyone' }, tokA)).status).toBe(400);
+  });
+
+  it('answers 404 for unknown shares and 401 when signed out; old ?k= links still open', async () => {
+    const { id } = (await create()).body.share;
+    expect((await s.call('GET', `/api/shares/nope`, undefined, tokB)).status).toBe(404);
     expect((await s.call('GET', `/api/shares/${id}`)).status).toBe(401);
     expect((await s.call('POST', '/api/shares', { title: 'x', config: CONFIG })).status).toBe(401);
+    expect((await s.call('GET', `/api/shares/${id}?k=old-edit-key`, undefined, tokB)).body.role).toBe('viewer');
   });
 
   it('validates input', async () => {
@@ -126,35 +175,37 @@ describe('share REST', () => {
     expect((await create({ config: { ...CONFIG, chartTf: '7m' } })).status).toBe(400);
     expect((await create({ drawings: [{ id: 'z', kind: 'circle', color: 'ink' }] })).status).toBe(400);
     expect((await create({ config: { ...CONFIG, symbol: 'XX=F' } })).status).toBe(400);
+    expect((await create({ linkAccess: 'public' })).status).toBe(400);
+    const { id } = (await create()).body.share;
+    expect((await setRole(id, bobId, 'editor')).status).toBe(404); // never opened it
+    expect((await setRole(id, bobId, 'pending')).status).toBe(400);
+    expect((await setRole(id, bobId, 'owner')).status).toBe(400);
   });
 
-  it('lists my shares newest first, with keys', async () => {
+  it('lists my shares newest first', async () => {
     await create({ title: 'one' });
     await create({ title: 'two' });
     const mine = (await s.call('GET', '/api/shares', undefined, tokA)).body.shares;
     expect(mine.map((x: { title: string }) => x.title).sort()).toEqual(['one', 'two']);
-    expect(mine.every((x: { viewKey?: string }) => x.viewKey)).toBe(true);
     expect((await s.call('GET', '/api/shares', undefined, tokB)).body.shares).toEqual([]);
   });
 
-  it('owner can rename, lock and rotate links; rotation revokes the old link', async () => {
+  it('owner can rename, lock and save a starting view (the symbol never changes)', async () => {
     const share = (await create()).body.share;
     expect((await s.call('PATCH', `/api/shares/${share.id}`, { title: 'Renamed', locked: true }, tokA)).body.share).toMatchObject({ title: 'Renamed', locked: true });
-    const rotated = (await s.call('PATCH', `/api/shares/${share.id}`, { rotate: 'view' }, tokA)).body.share;
-    expect(rotated.viewKey).not.toBe(share.viewKey);
-    expect(rotated.editKey).toBe(share.editKey);
-    expect((await s.call('GET', `/api/shares/${share.id}?k=${share.viewKey}`, undefined, tokB)).status).toBe(404);
-    expect((await s.call('GET', `/api/shares/${share.id}?k=${rotated.viewKey}`, undefined, tokB)).status).toBe(200);
     expect((await s.call('PATCH', `/api/shares/${share.id}`, {}, tokA)).status).toBe(400);
-    // Saving a new starting view keeps the instrument: a share is always about one symbol.
     const saved = (await s.call('PATCH', `/api/shares/${share.id}`, { config: { ...CONFIG, symbol: 'SPY', chartTf: '15m' } }, tokA)).body.share;
     expect(saved.config).toMatchObject({ symbol: 'QQQ', chartTf: '15m' });
   });
 
-  it('non-owners cannot change or delete, even with the edit link', async () => {
+  it('only the owner can change settings, manage people or delete, even an editor', async () => {
     const share = (await create()).body.share;
-    expect((await s.call('PATCH', `/api/shares/${share.id}?k=${share.editKey}`, { title: 'mine now' }, tokB)).status).toBe(404);
-    expect((await s.call('DELETE', `/api/shares/${share.id}?k=${share.editKey}`, undefined, tokB)).status).toBe(404);
+    await s.call('GET', `/api/shares/${share.id}`, undefined, tokB);
+    await setRole(share.id, bobId, 'editor');
+    expect((await s.call('PATCH', `/api/shares/${share.id}`, { title: 'mine now' }, tokB)).status).toBe(404);
+    expect((await s.call('GET', `/api/shares/${share.id}/members`, undefined, tokB)).status).toBe(404);
+    expect((await s.call('PATCH', `/api/shares/${share.id}/members/${bobId}`, { role: 'editor' }, tokB)).status).toBe(404);
+    expect((await s.call('DELETE', `/api/shares/${share.id}`, undefined, tokB)).status).toBe(404);
     expect((await s.call('DELETE', `/api/shares/${share.id}`, undefined, tokA)).status).toBe(204);
     expect((await s.call('GET', `/api/shares/${share.id}`, undefined, tokA)).status).toBe(404);
   });
@@ -162,7 +213,9 @@ describe('share REST', () => {
   it('copy to my charts appends with fresh ids under the share’s instrument, within the limit', async () => {
     const share = (await create()).body.share;
     await s.call('PUT', '/api/drawings', { symbol: 'QQQ', drawings: [line('mine')] }, tokB);
-    const copy = await s.call('POST', `/api/shares/${share.id}/copy?k=${share.viewKey}`, undefined, tokB);
+    expect((await s.call('POST', `/api/shares/${share.id}/copy`, undefined, tokB)).status).toBe(404); // hasn't opened it
+    await s.call('GET', `/api/shares/${share.id}`, undefined, tokB);
+    const copy = await s.call('POST', `/api/shares/${share.id}/copy`, undefined, tokB);
     expect(copy.body).toEqual({ copied: 2, skipped: 0, symbol: 'QQQ' });
     const got = (await s.call('GET', '/api/drawings?symbol=QQQ', undefined, tokB)).body.drawings as Drawing[];
     expect(got).toHaveLength(3);
@@ -170,10 +223,9 @@ describe('share REST', () => {
     expect(new Set(got.map((d) => d.id)).size).toBe(3);
     expect(got.slice(1).map((d) => (d as { p: number }).p)).toEqual([700, 705]);
     expect(got.slice(1).every((d) => !('v' in d) && !('n' in d))).toBe(true);
-    expect((await s.call('POST', `/api/shares/${share.id}/copy`, undefined, tokB)).status).toBe(404);
 
     await s.call('PUT', '/api/drawings', { symbol: 'QQQ', drawings: Array.from({ length: DRAWING_LIMITS.perSymbol - 1 }, (_, i) => line(`m${i}`)) }, tokB);
-    expect((await s.call('POST', `/api/shares/${share.id}/copy?k=${share.viewKey}`, undefined, tokB)).body).toMatchObject({ copied: 1, skipped: 1 });
+    expect((await s.call('POST', `/api/shares/${share.id}/copy`, undefined, tokB)).body).toMatchObject({ copied: 1, skipped: 1 });
   });
 
   it('enforces the per-owner share limit', async () => {
@@ -181,5 +233,12 @@ describe('share REST', () => {
     const res = await create();
     expect(res.status).toBe(400);
     expect(res.body.error).toMatch(/200/);
+  });
+
+  it('deleting a member’s account removes them from people lists', async () => {
+    const { id } = (await create()).body.share;
+    await s.call('GET', `/api/shares/${id}`, undefined, tokB);
+    await s.store.remove(bobId);
+    expect((await s.call('GET', `/api/shares/${id}/members`, undefined, tokA)).body.members).toEqual([]);
   });
 });

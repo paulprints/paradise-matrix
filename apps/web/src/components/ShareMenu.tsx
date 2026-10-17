@@ -1,15 +1,17 @@
 /** "Share" in the top bar: turn the current chart into a shared chart, and find the ones you've made. */
 import { useState } from 'react';
-import type { Drawing, ShareInfo } from '@paradise/contract';
+import type { Drawing, LinkAccess, ShareInfo } from '@paradise/contract';
 import { SHARE_LIMITS } from '@paradise/contract';
 import { api } from '../api.ts';
 import type { ViewState } from '../lib/view.ts';
 import { configFromView, shareLink } from '../share/route.ts';
 import { CopyLink } from './CopyLink.tsx';
+import { LinkAccessPicker } from './LinkAccessPicker.tsx';
 import { Popover } from './TopBar.tsx';
 
 export function ShareMenu({ view, drawings }: { view: ViewState; drawings: Drawing[] }) {
   const [title, setTitle] = useState('');
+  const [access, setAccess] = useState<LinkAccess>('viewer');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [made, setMade] = useState<ShareInfo | null>(null);
@@ -21,7 +23,7 @@ export function ShareMenu({ view, drawings }: { view: ViewState; drawings: Drawi
     setBusy(true);
     setError(null);
     try {
-      const share = await api.createShare(title.trim() || `${view.symbol} ${view.chartTf}`, configFromView(view), drawings);
+      const share = await api.createShare(title.trim() || `${view.symbol} ${view.chartTf}`, configFromView(view), drawings, access);
       setMade(share);
       setTitle('');
       load();
@@ -39,9 +41,9 @@ export function ShareMenu({ view, drawings }: { view: ViewState; drawings: Drawi
         {made ? (
           <>
             <h4>“{made.title}” is ready</h4>
-            <CopyLink label="View link" note="watch live" url={shareLink(origin, made.id, made.viewKey)} />
-            <CopyLink label="Edit link" note="draw together" url={shareLink(origin, made.id, made.editKey)} />
-            <p className="note">Members must be signed in. Anyone with a link can copy the drawings to their own charts.</p>
+            <CopyLink label="Link" note="send it to anyone in the group" url={shareLink(origin, made.id)} />
+            <LinkAccessPicker value={made.linkAccess} onChange={async (v) => { try { setMade(await api.updateShare(made.id, { linkAccess: v })); } catch (e) { setError((e as Error).message); } }} />
+            <p className="note">Everyone who opens it appears under <strong>People</strong> on the shared chart, where you choose who can view or edit.</p>
             <div className="row"><a className="btn primary" href={shareLink(origin, made.id)}>Open shared chart</a><button className="btn quiet" onClick={() => setMade(null)}>Share another</button></div>
           </>
         ) : (
@@ -52,7 +54,8 @@ export function ShareMenu({ view, drawings }: { view: ViewState; drawings: Drawi
               <span className="muted">Title</span>
               <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={SHARE_LIMITS.titleLength} placeholder={`${view.symbol} ${view.chartTf}`} />
             </label>
-            <button className="btn primary" type="submit" disabled={busy}>{busy ? 'Creating…' : 'Create links'}</button>
+            <LinkAccessPicker value={access} onChange={setAccess} />
+            <button className="btn primary" type="submit" disabled={busy}>{busy ? 'Creating…' : 'Create link'}</button>
           </form>
         )}
         {error && <p className="warn" role="alert">{error}</p>}

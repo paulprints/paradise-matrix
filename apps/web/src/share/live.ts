@@ -11,7 +11,7 @@ export type EndReason = 'auth' | 'revoked' | 'gone';
 
 export interface LiveOptions {
   url: string;
-  auth: () => { token: string | null; share: string; key?: string };
+  auth: () => { token: string | null; share: string };
   onMessage: (m: LiveServerMessage) => void;
   onStatus: (s: LiveStatus, ended?: EndReason) => void;
   /** Injectable for tests. */
@@ -72,7 +72,7 @@ export class LiveConnection {
     ws.onopen = () => {
       const a = this.o.auth();
       if (!a.token) { this.end('auth'); this.ws = null; ws.close(1000); return; }
-      ws.send(JSON.stringify({ type: 'auth', token: a.token, share: a.share, ...(a.key ? { key: a.key } : {}) } satisfies LiveClientMessage));
+      ws.send(JSON.stringify({ type: 'auth', token: a.token, share: a.share } satisfies LiveClientMessage));
     };
     ws.onmessage = (e) => {
       let m: LiveServerMessage;

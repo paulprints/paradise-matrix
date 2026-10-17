@@ -9,8 +9,8 @@ packages/contract   API types shared by server and web (no math)
 packages/engine     SERVER-ONLY level arithmetic: the 31 audited formulas as one table, frames, Market Profile
 apps/server         Express API: data contract, exchange calendar, instruments, cache, auth, /api/levels
 apps/web            React app: canvas chart (candles over time-varying heat, levels as validity steps, live updates,
-                    drawing tools) built on TradingView Lightweight Charts; shared charts (live drawing, cursors,
-                    presenting); ladder view; inspector; members admin
+                    drawing tools) built on TradingView Lightweight Charts; shared charts (one link, people list,
+                    live drawing, cursors, presenting); ladder view; closable details panel; members admin
 data-server         Python OHLC service (the "external" provider), fixed adjustment policy
 fixtures/           The audit's raw NinjaTrader captures; the golden test suite runs against them
 docs/               DESIGN (why), CONTRACT (what), MIGRATION (from v1)
@@ -24,7 +24,7 @@ docs/               DESIGN (why), CONTRACT (what), MIGRATION (from v1)
 - **Data Box parity through the API.** The audit's QQQ bars go through the real HTTP endpoint; the 31 confirmed levels for the display bar equal what NinjaTrader's Data Box showed on 2026-09-09 (Daily), wk 2026-07-20 (Weekly) and 2026-01 (Monthly), with +1 displacement.
 - **No look-ahead.** An as-of request returns exactly what you'd get by truncating history at that bar.
 - **Boundaries.** Vendor names never appear in API responses; web code can't import the engine.
-- **Shared charts.** Real WebSocket clients exercise roles, locks, link rotation, presenting, rate limits and reconnects; three simulated members converge whatever order their concurrent edits arrive in; concurrent writes to one drawing always store the winner.
+- **Shared charts.** Real WebSocket clients exercise roles and live role changes, approvals and removals, locks, presenting, rate limits and reconnects; three simulated members converge whatever order their concurrent edits arrive in; concurrent writes to one drawing always store the winner.
 
 ## Quick start
 
@@ -60,7 +60,7 @@ pm2 save
 
 **Shared charts need WebSockets through the tunnel.** Cloudflare passes them through by default; check once after deploying (Windows has `curl.exe`):
 ```
-curl.exe -i -N -H "Connection: Upgrade" -H "Upgrade: websocket" -H "Sec-WebSocket-Version: 13" -H "Sec-WebSocket-Key: SGVsbG8sIHdvcmxkIQ==" https://api.printersbackend.org/api/live
+curl.exe -i -N -H "Connection: Upgrade" -H "Upgrade: websocket" -H "Sec-WebSocket-Version: 13" -H "Sec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==" https://api.printersbackend.org/api/live
 ```
 The first line should read `HTTP/1.1 101 Switching Protocols` (press Ctrl+C to end it).
 

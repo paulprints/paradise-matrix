@@ -52,13 +52,13 @@ Measured: zoom frames render within one display refresh (about 35 ms across 2 an
 
 ## Shared charts (v2.2)
 
-Three ways to use one feature: a **link to look at** (view link; viewers can copy drawings to their own charts), a **live view** (presence plus *Present*, which makes followers' candle timeframe, level timeframes and visible range track the presenter), and a **shared room** (edit link: everyone draws at once and sees each other's cursors). Research and alternatives: the project doc *chart-sharing-research*.
+Three ways to use one feature: **watch** (viewers can copy drawings to their own charts), **present** (followers' candle timeframe, level timeframes and visible range track the presenter), and **draw together** (editors draw at once and see each other's cursors). All three come from one link; what each person can do is set on the people list. Research and alternatives: the project doc *chart-sharing-research*.
 
 Choices, and why:
 - **Our server, per-drawing versions (Excalidraw's model), not a CRDT or a hosted service.** Drawings are small, discrete objects; "last edit to each drawing wins, deterministically" is all they need. It keeps members' data in our SQLite, needs one dependency (`ws`), and the rule is a three-line function in the contract that server and browser share. Yjs or Liveblocks would earn their keep for rich text; not here.
 - **Market data isn't synced.** Everyone fetches candles and levels from the API; the arithmetic is deterministic, so everyone sees identical levels. Only drawings, cursors and the presenter's view travel over the socket.
 - **One `DrawingSource` interface.** The drawing tools don't know whether they're editing your own chart (REST, debounced) or a shared one (live ops), so there's one set of tools to maintain.
-- **Links carry the role; accounts carry identity.** No invite lists to manage. Revoking a link is rotating its key, which also disconnects whoever is using it.
+- **One link, a people list.** (v2.3; v2.2 had separate view and edit links.) The link only gets you onto the list; the owner decides what each person can do, the way the members admin page works, and changes reach open tabs at once. Removing someone keeps them listed so the link can't readmit them. *Must ask to join* covers the case where a link gets forwarded further than intended.
 - **Following ends when you touch the chart**, as in whiteboard tools: presenting must never fight a member's own hand.
 
 ## What was deliberately removed

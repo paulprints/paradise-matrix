@@ -12,7 +12,7 @@ export interface InspectorContext {
 }
 export interface ResolvedLevel { tf: string; label: string; price: number; developing: boolean; sourceLabel: string }
 
-interface Props { data: InspectorContext; resolve: (id: string) => ResolvedLevel | undefined; row: HeatRow | null; hint?: string; title?: string; heatStyle?: HeatStyle }
+interface Props { data: InspectorContext; resolve: (id: string) => ResolvedLevel | undefined; row: HeatRow | null; hint?: string; title?: string; heatStyle?: HeatStyle; onClose?: () => void }
 
 function pivotText(f: Frame): string {
   const d = f.facts.pivotDirection;
@@ -26,10 +26,15 @@ function closesText(f: Frame): string {
   return c.side === 'on' ? 'Closed on the pivot' : `${c.bars} close${c.bars === 1 ? '' : 's'} ${c.side}`;
 }
 
-export function Inspector({ data, resolve, row, hint, title = 'Read the ladder', heatStyle = 'matrix' }: Props) {
+export function Inspector({ data, resolve, row, hint, title = 'Read the ladder', heatStyle = 'matrix', onClose }: Props) {
   const tick = data.instrument.tick;
   return (
-    <aside className="side" aria-label="Details">
+    <aside className="side" id="details-panel" aria-label="Details">
+      {onClose && (
+        <button className="side-close" onClick={onClose} aria-label="Hide details panel" title="Hide details (I)">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        </button>
+      )}
       <section aria-live="polite">
         {row ? (
           <>
