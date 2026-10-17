@@ -7,16 +7,23 @@ import { Ladder } from './components/Ladder.tsx';
 import { Members } from './components/Members.tsx';
 import { SignIn } from './components/SignIn.tsx';
 import { ToolRail } from './components/ToolRail.tsx';
+import { ShareBar } from './components/ShareBar.tsx';
+import { ShareMenu } from './components/ShareMenu.tsx';
 import { TopBar } from './components/TopBar.tsx';
-import { useDrawings } from './drawings/useDrawings.ts';
+import { personalSource, useDrawings, type SaveStatus } from './drawings/useDrawings.ts';
 import { formatBarTime } from './lib/format.ts';
 import type { HeatRow } from './lib/heat.ts';
 import { parseView, serializeView, type ViewState } from './lib/view.ts';
+import { parseShareRoute, viewFromConfig } from './share/route.ts';
+import { usePresence } from './share/usePresence.ts';
+import { useShare } from './share/useShare.ts';
 import { useChart } from './useChart.ts';
 import { useLevels } from './useLevels.ts';
 
 type Theme = 'plate' | 'paper';
 const readTheme = (): Theme => { try { return localStorage.getItem('pp_theme') === 'paper' ? 'paper' : 'plate'; } catch { return 'plate'; } };
+const SAVE_LABEL: Record<SaveStatus, { label: string; warn?: boolean }> = { idle: { label: '' }, saving: { label: 'Saving' }, saved: { label: 'Saved' }, error: { label: 'Not saved', warn: true } };
+const LIVE_LABEL: Record<string, { label: string; warn?: boolean }> = { live: { label: 'Live' }, connecting: { label: 'Joining' }, offline: { label: 'Offline', warn: true }, ended: { label: 'Ended', warn: true } };
 
 export function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -27,6 +34,9 @@ export function App() {
   const [theme, setTheme] = useState<Theme>(readTheme);
   const [row, setRow] = useState<HeatRow | null>(null);
   const [handles, setHandles] = useState<ChartHandles | null>(null);
+  // A shared chart lives at /c/<id>?k=<key>; its settings come from the share, not the address bar.
+  const route = useMemo(() => parseShareRoute(location.pathname, location.search), []);
+  const share = useShare(route, !!user);
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -41,13 +51,23 @@ export function App() {
     window.addEventListener(SESSION_EXPIRED, onExpired);
     return () => window.removeEventListener(SESSION_EXPIRED, onExpired);
   }, []);
-  useEffect(() => { history.replaceState(null, '', serializeView(view) + (page === 'members' ? '#members' : '')); }, [view, page]);
+  useEffect(() => { if (!route) history.replaceState(null, '', serializeView(view) + (page === 'members' ? '#members' : '')); }, [view, page, route]);
+  useEffect(() => { if (share.info) setViewState((v) => ({ ...v, ...viewFromConfig(share.info!.config) })); }, [share.info?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (share.info) document.title = `${share.info.title} · Paradise Matrix`; }, [share.info?.title]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const setView = useCallback((patch: Partial<ViewState>) => { setRow(null); setViewState((v) => ({ ...v, ...patch })); }, []);
-  const onMatrix = !!user && page === 'matrix';
+  // On a shared chart, wait for the share before loading anything (its symbol and settings).
+  const onMatrix = !!user && page === 'matrix' && (!route || !!share.info);
   const ladder = useLevels(view, onMatrix && view.view === 'ladder');
   const chart = useChart(view, onMatrix && view.view === 'chart');
-  const draw = useDrawings(view.symbol, handles, onMatrix && view.view === 'chart');
+  const mySource = useMemo(() => personalSource(view.symbol), [view.symbol]);
+  const draw = useDrawings(route ? share.source : mySource, handles, onMatrix && view.view === 'chart');
+  usePresence(share, handles, chart.state, view, setView);
+  if (import.meta.env.DEV) {
+    // Debug probe for browser tests: what this tab holds (drawings, share session).
+    (window as unknown as { __pmApp?: unknown }).__pmApp = { drawings: draw.drawings, editable: draw.editable, view, share: { status: share.status, role: share.role, peers: share.peers.map((p) => p.username), presenter: share.presenterPeer?.username ?? null, following: share.following, ended: share.ended, locked: share.info?.locked } };
+  }
+  const exitShare = useCallback(() => { location.assign('/' + serializeView({ ...view, view: 'chart' })); }, [view]);
 
   const ladderLevels = useMemo(() => {
     const d = ladder.data;
@@ -79,6 +99,15 @@ export function App() {
   if (checking) return null;
   if (!user) return <SignIn notice={notice} onSignedIn={(u) => { setNotice(null); setUser(u); }} />;
   if (page === 'members' && user.isAdmin) return <Members me={user} onBack={() => setPage('matrix')} />;
+  if (route && !share.info) {
+    return (
+      <div className="signin">
+        {share.error ? (
+          <div className="share-gone"><h2>Can’t open this chart</h2><p className="dim">{share.error}</p><a className="btn" href="/">Go to your charts</a></div>
+        ) : <p className="dim">Opening shared chart…</p>}
+      </div>
+    );
+  }
 
   const isChart = view.view === 'chart';
   const error = isChart ? chart.error : ladder.error;
@@ -90,20 +119,24 @@ export function App() {
           view={view} setView={setView} anchors={ladder.data?.anchors ?? []} user={user} loading={loading}
           theme={theme} onTheme={() => setTheme(theme === 'plate' ? 'paper' : 'plate')}
           onAdmin={() => setPage('members')} onSignOut={() => { api.logout(); setUser(null); }}
+          symbolLocked={!!route}
+          share={route ? undefined : <ShareMenu view={view} drawings={view.view === 'chart' ? draw.drawings : []} />}
         />
+        {route && <ShareBar share={share} view={view} onExit={exitShare} />}
         {error && <div className="banner error" role="alert">{error}{!isChart && <> <button className="btn quiet" onClick={ladder.refresh}>Try again</button></>}</div>}
         {!isChart && view.asOf && <div className="banner past">Looking back: levels as they stood at that close. Developing levels are off.</div>}
       </div>
       {isChart ? (
         chart.state ? (
-          <div className="main with-rail">
-            <ToolRail
+          <div className={`main ${draw.editable ? 'with-rail' : ''}`}>
+            {draw.editable && <ToolRail
               tool={draw.tool} setTool={draw.setTool} color={draw.color} setColor={draw.setColor}
               hasSelection={!!draw.selected} canExtend={draw.selectedDrawing?.kind === 'trend'}
               extended={draw.selectedDrawing?.kind === 'trend' && draw.selectedDrawing.extend}
               onExtend={draw.toggleExtend} onDelete={draw.removeSelected} onClear={draw.clearAll}
-              status={draw.status} count={draw.drawings.length}
-            />
+              status={route ? LIVE_LABEL[share.status]! : SAVE_LABEL[draw.status]} count={draw.drawings.length}
+              scope={route ? 'on this shared chart, for everyone' : `on ${view.symbol}`}
+            />}
             <div className="chart-wrap">
               <ChartView state={chart.state} groups={view.groups} heat={view.heat} heatStyle={view.heatStyle} theme={theme} onInspect={setRow} onNeedMore={onNeedMore} onReady={setHandles} />
               {draw.textPrompt && (

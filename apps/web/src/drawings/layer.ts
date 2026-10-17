@@ -3,9 +3,8 @@ import type { IPrimitivePaneRenderer, IPrimitivePaneView, ISeriesPrimitive, Prim
 import type { Drawing } from '@paradise/contract';
 import type { RenderModel } from '../chart/model.ts';
 import { drawingColor, withAlpha } from '../chart/theme.ts';
-import { logicalToTime, timeToLogical } from '../chart/time.ts';
+import { projectAnchor, unprojectPoint } from '../chart/anchor.ts';
 import { extendRay, hitTest, type Pt } from './geometry.ts';
-import { logicalToX, xToLogical, type LogicalScale } from '../chart/coords.ts';
 
 type Target = Parameters<IPrimitivePaneRenderer['draw']>[0];
 export const TEXT_FONT = '600 13px Archivo, system-ui, sans-serif';
@@ -26,20 +25,10 @@ export class DrawingsLayer implements ISeriesPrimitive<Time> {
   invalidate() { this.p?.requestUpdate(); }
 
   /** Anchor (time, price) → pane pixels. */
-  project = (a: { t: number; p: number }): Pt | null => {
-    if (!this.p || !this.model.times.length) return null;
-    const x = logicalToX(this.p.chart.timeScale() as unknown as LogicalScale, timeToLogical(this.model.times, this.model.span, a.t));
-    const y = this.p.series.priceToCoordinate(a.p);
-    return x === null || y === null ? null : { x, y };
-  };
+  project = (a: { t: number; p: number }): Pt | null => projectAnchor(this.p, this.model, a);
 
   /** Pane pixels → anchor. */
-  unproject = (pt: Pt): { t: number; p: number } | null => {
-    if (!this.p || !this.model.times.length) return null;
-    const logical = xToLogical(this.p.chart.timeScale() as unknown as LogicalScale, pt.x);
-    const p = this.p.series.coordinateToPrice(pt.y);
-    return logical === null || p === null ? null : { t: Math.round(logicalToTime(this.model.times, this.model.span, logical)), p };
-  };
+  unproject = (pt: Pt): { t: number; p: number } | null => unprojectPoint(this.p, this.model, pt);
 
   measure = (s: string): number => {
     this.measureCtx ??= document.createElement('canvas').getContext('2d');

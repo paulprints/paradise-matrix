@@ -231,3 +231,97 @@ export type DrawingKind = Drawing['kind'];
 export const DRAWING_LIMITS = { perSymbol: 500, brushPoints: 2000, textLength: 200 } as const;
 
 export interface DrawingsResponse { symbol: string; drawings: Drawing[]; updatedAt: string | null }
+
+// ---------------------------------------------------------------------------
+// Shared charts (collaboration)
+// ---------------------------------------------------------------------------
+
+/** The view a shared chart opens with. The symbol is fixed for the share (drawings belong to it). */
+export interface ShareConfig {
+  symbol: string;
+  chartTf: Timeframe;
+  timeframes: Timeframe[];
+  displacement: Displacement;
+  developing: boolean;
+  profile: boolean;
+  heat: boolean;
+  heatStyle: 'matrix' | 'halftone';
+  groups: LevelGroup[];
+}
+
+export type ShareRole = 'owner' | 'editor' | 'viewer';
+
+export interface ShareInfo {
+  id: string;
+  title: string;
+  config: ShareConfig;
+  owner: { id: number; username: string };
+  /** Locked shares are read-only for everyone, owner included, until unlocked. */
+  locked: boolean;
+  createdAt: string;
+  updatedAt: string;
+  /** Link keys. Only returned to the owner. Rotating a key revokes old links. */
+  viewKey?: string;
+  editKey?: string;
+}
+
+/**
+ * A drawing with its collaboration version. `v` increases with every edit; `n` is a
+ * random tie-break regenerated on each edit. Highest v wins; on equal v, lower n wins.
+ */
+export type VersionedDrawing = Drawing & { v: number; n: number };
+
+/** One change to one drawing. `d` is the full drawing (absent when deleted). */
+export interface LiveOp { id: string; v: number; n: number; del?: true; d?: Drawing }
+
+export interface ShareOpenResponse { share: ShareInfo; role: ShareRole; drawings: VersionedDrawing[] }
+
+/** What a presenter is looking at; followers mirror it. Times are unix seconds. */
+export interface PresenterView { chartTf: Timeframe; timeframes: Timeframe[]; from: number; to: number }
+
+export interface Peer {
+  /** Connection id (one member can be connected from two tabs). */
+  id: string;
+  userId: number;
+  username: string;
+  role: ShareRole;
+  color: string;
+}
+
+export type LiveClientMessage =
+  | { type: 'auth'; token: string; share: string; key?: string }
+  | { type: 'ops'; ops: LiveOp[] }
+  | { type: 'presence'; cursor: Anchor | null; view?: PresenterView }
+  | { type: 'present'; on: boolean }
+  | { type: 'ping' };
+
+export type LiveServerMessage =
+  | { type: 'welcome'; you: Peer; peers: Peer[]; drawings: VersionedDrawing[]; presenter: string | null; share: ShareInfo }
+  | { type: 'ops'; by: string; ops: LiveOp[] }
+  /** Your ops that lost; each carries the server's current state for that drawing. */
+  | { type: 'reject'; ops: LiveOp[]; reason: string }
+  | { type: 'peer'; event: 'join' | 'leave'; peer: Peer }
+  | { type: 'presence'; from: string; cursor: Anchor | null; view?: PresenterView }
+  | { type: 'present'; presenter: string | null }
+  | { type: 'share'; share: ShareInfo }
+  | { type: 'error'; message: string }
+  | { type: 'pong' };
+
+/** WebSocket close codes used by the live hub. */
+export const LIVE_CLOSE = { auth: 4401, forbidden: 4403, gone: 4404, policy: 4408 } as const;
+export const SHARE_LIMITS = { titleLength: 80, perOwner: 200 } as const;
+/** Live edit budget per connection: `capacity` ops, refilled evenly over `windowMs`; at most `perMessage` per message. */
+export const LIVE_OPS_BUDGET = { capacity: 200, windowMs: 10_000, perMessage: 100 } as const;
+
+/**
+ * Per-drawing convergence rule (Excalidraw's model), shared by server and
+ * browser. Every edit bumps the drawing's version `v` and picks a fresh random
+ * nonce `n`. Higher version wins; on a tie the lower nonce wins. Deletes are
+ * tombstones, so a stale copy can't resurrect a deleted drawing.
+ */
+export function stampWins(incoming: { v: number; n: number }, current: { v: number; n: number } | null | undefined): boolean {
+  if (!current) return true;
+  return incoming.v > current.v || (incoming.v === current.v && incoming.n < current.n);
+}
+/** Random tie-break nonce in [0, 2^31). */
+export const stampNonce = (): number => Math.floor(Math.random() * 2 ** 31);

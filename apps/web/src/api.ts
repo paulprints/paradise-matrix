@@ -1,6 +1,7 @@
-import type { ChartRequest, ChartResponse, Drawing, DrawingsResponse, LevelsRequest, LevelsResponse, LoginResponse, User } from '@paradise/contract';
+import type { ChartRequest, ChartResponse, Drawing, DrawingsResponse, LevelsRequest, LevelsResponse, LoginResponse, ShareConfig, ShareInfo, ShareOpenResponse, User } from '@paradise/contract';
 
-const BASE = `${import.meta.env.VITE_API_URL ?? ''}/api`;
+export const API_ORIGIN: string | undefined = import.meta.env.VITE_API_URL || undefined;
+const BASE = `${(API_ORIGIN ?? '').replace(/\/+$/, '')}/api`;
 const TOKEN_KEY = 'pp_token';
 
 export const tokenStore = {
@@ -51,6 +52,12 @@ export const api = {
   chart: (req: ChartRequest, signal?: AbortSignal) => request<ChartResponse>('POST', '/chart', req, signal),
   drawings: (symbol: string, signal?: AbortSignal) => request<DrawingsResponse>('GET', `/drawings?symbol=${encodeURIComponent(symbol)}`, undefined, signal),
   saveDrawings: (symbol: string, drawings: Drawing[]) => request<DrawingsResponse>('PUT', '/drawings', { symbol, drawings }),
+  createShare: (title: string, config: ShareConfig, drawings: Drawing[]) => request<{ share: ShareInfo }>('POST', '/shares', { title, config, drawings }).then((r) => r.share),
+  myShares: (signal?: AbortSignal) => request<{ shares: ShareInfo[] }>('GET', '/shares', undefined, signal).then((r) => r.shares),
+  openShare: (id: string, key: string | null, signal?: AbortSignal) => request<ShareOpenResponse>('GET', `/shares/${encodeURIComponent(id)}${key ? `?k=${encodeURIComponent(key)}` : ''}`, undefined, signal),
+  updateShare: (id: string, patch: { title?: string; locked?: boolean; rotate?: 'view' | 'edit'; config?: ShareConfig }) => request<{ share: ShareInfo }>('PATCH', `/shares/${encodeURIComponent(id)}`, patch).then((r) => r.share),
+  deleteShare: (id: string) => request<void>('DELETE', `/shares/${encodeURIComponent(id)}`),
+  copyShare: (id: string, key: string | null) => request<{ copied: number; skipped: number; symbol: string }>('POST', `/shares/${encodeURIComponent(id)}/copy${key ? `?k=${encodeURIComponent(key)}` : ''}`),
   users: () => request<{ users: Array<User & { createdAt: string }> }>('GET', '/admin/users').then((r) => r.users),
   createUser: (username: string, password: string, isAdmin: boolean) => request<{ user: User }>('POST', '/admin/users', { username, password, isAdmin }),
   updateUser: (id: number, patch: { password?: string; isAdmin?: boolean }) => request<{ user: User }>('PATCH', `/admin/users/${id}`, patch),

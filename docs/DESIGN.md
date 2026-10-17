@@ -50,6 +50,17 @@ Two library behaviours we work around (observed on 5.2.1, and covered by tests):
 
 Measured: zoom frames render within one display refresh (about 35 ms across 2 animation frames at 60 Hz, with 1,000 candles and about 3,800 level segments). The Ladder view remains for a quick single-column read.
 
+## Shared charts (v2.2)
+
+Three ways to use one feature: a **link to look at** (view link; viewers can copy drawings to their own charts), a **live view** (presence plus *Present*, which makes followers' candle timeframe, level timeframes and visible range track the presenter), and a **shared room** (edit link: everyone draws at once and sees each other's cursors). Research and alternatives: the project doc *chart-sharing-research*.
+
+Choices, and why:
+- **Our server, per-drawing versions (Excalidraw's model), not a CRDT or a hosted service.** Drawings are small, discrete objects; "last edit to each drawing wins, deterministically" is all they need. It keeps members' data in our SQLite, needs one dependency (`ws`), and the rule is a three-line function in the contract that server and browser share. Yjs or Liveblocks would earn their keep for rich text; not here.
+- **Market data isn't synced.** Everyone fetches candles and levels from the API; the arithmetic is deterministic, so everyone sees identical levels. Only drawings, cursors and the presenter's view travel over the socket.
+- **One `DrawingSource` interface.** The drawing tools don't know whether they're editing your own chart (REST, debounced) or a shared one (live ops), so there's one set of tools to maintain.
+- **Links carry the role; accounts carry identity.** No invite lists to manage. Revoking a link is rotating its key, which also disconnects whoever is using it.
+- **Following ends when you touch the chart**, as in whiteboard tools: presenting must never fight a member's own hand.
+
 ## What was deliberately removed
 
 Market type/R-vals/structure, the tutorial and scenario trainer (they taught "Terminal = high probability reversal"), the price alert, Single vs Cumulative modes (now: choose one or more timeframes), the virtual-scroll grid (the ladder fits the screen; zoom changes span), Tailwind, frontend tick guessing, and v1's request-time logging of password hashes.

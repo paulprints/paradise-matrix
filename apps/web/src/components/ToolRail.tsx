@@ -13,8 +13,10 @@ interface Props {
   onExtend: () => void;
   onDelete: () => void;
   onClear: () => void;
-  status: 'idle' | 'saving' | 'saved' | 'error';
+  status: { label: string; warn?: boolean };
   count: number;
+  /** Where "clear all" applies, for the confirmation. */
+  scope: string;
 }
 
 // Small line icons drawn for this rail (24×24, stroke = currentColor).
@@ -58,13 +60,11 @@ export function ToolRail(p: Props) {
         <button className="rail-btn" disabled={!p.hasSelection} title="Delete selected (Delete)" aria-label="Delete selected drawing" onClick={p.onDelete}>
           {I(<><path d="M5 7h14M9 7V4h6v3M7 7l1 13h8l1-13" /></>)}
         </button>
-        <button className="rail-btn" disabled={!p.count} title="Clear all drawings on this symbol" aria-label="Clear all drawings" onClick={() => { if (confirm(`Remove all ${p.count} drawings on this symbol?`)) p.onClear(); }}>
+        <button className="rail-btn" disabled={!p.count} title="Clear all drawings on this symbol" aria-label="Clear all drawings" onClick={() => { if (confirm(`Remove all ${p.count} drawings ${p.scope}?`)) p.onClear(); }}>
           {I(<><path d="M4 4l16 16M20 4L4 20" /></>)}
         </button>
       </div>
-      <span className={`rail-status ${p.status === 'error' ? 'warn' : 'muted'}`} role="status">
-        {p.status === 'saving' ? 'Saving' : p.status === 'saved' ? 'Saved' : p.status === 'error' ? 'Not saved' : ''}
-      </span>
+      <span className={`rail-status ${p.status.warn ? 'warn' : 'muted'}`} role="status">{p.status.label}</span>
     </nav>
   );
 }

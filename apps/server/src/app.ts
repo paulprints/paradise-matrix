@@ -8,11 +8,15 @@ import type { Config } from './config.ts';
 import type { UserStore } from './auth/db.ts';
 import { requireAdmin, requireAuth, signToken, type AuthedRequest } from './auth/tokens.ts';
 import { computeChart } from './chart.ts';
+import type { LiveHub } from './shares/live.ts';
+import { shareRoutes } from './shares/routes.ts';
+import type { SharesStore } from './shares/store.ts';
+import { drawingSchema } from './schemas.ts';
 import { InstrumentError, resolveInstrument } from './data/instruments.ts';
 import { MarketDataError, type Market } from './data/market.ts';
 import { computeLevels, RequestError } from './levels.ts';
 
-export interface AppDeps { config: Config; store: UserStore; market: Market; now?: () => number }
+export interface AppDeps { config: Config; store: UserStore; market: Market; shares?: SharesStore; live?: LiveHub | null; now?: () => number }
 
 const levelsSchema = z.object({
   symbol: z.string().trim().min(1).max(24),
@@ -33,17 +37,6 @@ const chartSchema = z.object({
   bars: z.number().int().min(50).max(5000).optional(),
   since: z.number().int().min(0).optional(),
 });
-const finite = z.number().finite();
-const anchor = z.object({ t: z.number().int().min(0), p: finite });
-const base = { id: z.string().min(1).max(40), color: z.enum(DRAWING_COLORS) };
-const drawingSchema = z.discriminatedUnion('kind', [
-  z.object({ ...base, kind: z.literal('trend'), a: anchor, b: anchor, extend: z.boolean() }),
-  z.object({ ...base, kind: z.literal('hline'), p: finite }),
-  z.object({ ...base, kind: z.literal('vline'), t: z.number().int().min(0) }),
-  z.object({ ...base, kind: z.literal('rect'), a: anchor, b: anchor }),
-  z.object({ ...base, kind: z.literal('text'), a: anchor, text: z.string().trim().min(1).max(DRAWING_LIMITS.textLength) }),
-  z.object({ ...base, kind: z.literal('brush'), pts: z.array(anchor).min(2).max(DRAWING_LIMITS.brushPoints) }),
-]);
 const drawingsSchema = z.object({ symbol: z.string().trim().min(1).max(24), drawings: z.array(drawingSchema).max(DRAWING_LIMITS.perSymbol) });
 const loginSchema = z.object({ username: z.string().trim().min(1).max(50), password: z.string().min(1).max(200) });
 const newUserSchema = z.object({
@@ -56,7 +49,7 @@ const patchUserSchema = z.object({ password: z.string().min(8).max(200).optional
 const wrap = (fn: (req: AuthedRequest, res: Response) => Promise<unknown>) =>
   (req: Request, res: Response, next: NextFunction) => fn(req as AuthedRequest, res).catch(next);
 
-export function createApp({ config, store, market, now }: AppDeps) {
+export function createApp({ config, store, market, shares, live = null, now }: AppDeps) {
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', config.trustProxy);
@@ -116,6 +109,8 @@ export function createApp({ config, store, market, now }: AppDeps) {
     const out: DrawingsResponse = { symbol, drawings: body.data.drawings as DrawingsResponse['drawings'], updatedAt };
     res.json(out);
   }));
+
+  if (shares) app.use('/api/shares', auth, shareRoutes({ store, shares, live }));
 
   const admin = express.Router();
   admin.use(auth, requireAdmin);
