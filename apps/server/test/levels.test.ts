@@ -133,6 +133,21 @@ describe('/api/levels behaviour', () => {
   });
 });
 
+describe('stale data warning', () => {
+  it('warns when the provider is a session behind the calendar, and not when it is current', async () => {
+    const { rows } = captureRows(DAILY, 240); // through 2026-09-08
+    const p = staticProvider('fixture', { 'QQQ:D': rows });
+    await withServer([p], at('2026-09-09T21:00:00Z'), async (call, token) => { // Sep 9 closed an hour ago
+      const body = (await call('POST', '/api/levels', { symbol: 'QQQ', timeframes: ['D'] }, token)).body as LevelsResponse;
+      expect(body.frames[0]!.warnings[0]).toBe('fixture data is behind: newest complete daily bar is 2026-09-08, but the 2026-09-09 session has closed. Levels use 2026-09-08.');
+    });
+    await withServer([p], at('2026-09-09T15:00:00Z'), async (call, token) => { // Sep 9 still open: current
+      const body = (await call('POST', '/api/levels', { symbol: 'QQQ', timeframes: ['D'] }, token)).body as LevelsResponse;
+      expect(body.frames[0]!.warnings.some((w) => w.includes('behind'))).toBe(false);
+    });
+  });
+});
+
 describe('profile levels', () => {
   it('builds POC/VAH/VAL for the prior completed session, drawn on the next', async () => {
     const { rows: daily } = captureRows(DAILY, 241);

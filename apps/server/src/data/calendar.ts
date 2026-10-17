@@ -139,6 +139,13 @@ export function periodLabel(tf: Timeframe, key: string, cal: ExchangeCalendar, s
   return `${p.y}-${pad(p.m)}-${pad(p.d)} ${pad(p.h)}:${pad(p.mi)}`;
 }
 
+/** Most recent trading date whose session closed at least `graceS` seconds before `now`. */
+export function lastClosedSession(cal: ExchangeCalendar, now: number, graceS: number): string {
+  let d = cal.sessionDateOf(now);
+  for (let i = 0; i < 15 && (!cal.isTradingDay(d) || cal.sessionClose(d) + graceS > now); i++) d = prevTradingDay(cal, d);
+  return d;
+}
+
 export function calendarCovers(cal: ExchangeCalendar, sec: number): boolean {
   const y = localParts(sec, cal.timezone).y;
   return y >= cal.coveredYears[0] && y <= cal.coveredYears[1];

@@ -60,6 +60,8 @@ async function main() {
     const r = await computeLevels({ symbol, timeframes: [...timeframes], developing: true, profile: true }, { market });
     const confirmed = r.levels.filter((l) => l.basis === 'confirmed' && l.group !== 'profile');
     check(confirmed.length === 31 * timeframes.length, `${symbol}: ${confirmed.length} confirmed levels, last price ${r.lastPrice?.price}`);
+    const daily = r.frames.find((f) => f.tf === 'D');
+    check(!daily?.warnings.some((w) => w.includes('behind')), `${symbol}: daily data is current (newest complete bar ${daily?.source?.label})`);
     for (const f of r.frames) console.log(`      ${f.tf}: from ${f.source?.label} → drawn on ${f.display.label}; ${f.facts.location?.label ?? 'no location'}${f.warnings.length ? `; warnings: ${f.warnings.join(' | ')}` : ''}`);
     for (const w of r.warnings) console.log(`      note: ${w}`);
   }

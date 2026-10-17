@@ -7,7 +7,11 @@ import type { Timeframe } from '@paradise/contract';
 import type { EngineBar } from '@paradise/engine';
 import { INTRADAY_SECONDS, nextPeriodKey, periodBounds, periodKeyOf, periodLabel, type ExchangeCalendar } from './calendar.ts';
 
-export interface RawBar { t: number; o: number; h: number; l: number; c: number; v: number }
+export interface RawBar {
+  t: number; o: number; h: number; l: number; c: number; v: number;
+  /** Set by a provider when a field came from somewhere other than the bar row itself. */
+  note?: string;
+}
 
 export interface Bar extends EngineBar {
   readonly key: string;
@@ -47,6 +51,7 @@ export function normalizeBars(raw: readonly RawBar[], tf: Timeframe, cal: Exchan
     if (!prev || r.t >= prev.r.t) byKey.set(key, { r, start, end, key });
   }
   if (dropped) warnings.push(`${dropped} malformed or off-calendar ${tf} row(s) dropped`);
+  for (const { r, key } of byKey.values()) if (r.note) warnings.push(`${tf} ${periodLabel(tf, key, cal, r.t)}: ${r.note}`);
 
   const bars = [...byKey.values()]
     .sort((a, b) => a.start - b.start)

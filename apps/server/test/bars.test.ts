@@ -69,3 +69,17 @@ describe('confirmedIndexAt / displayRef', () => {
     expect(displayRef(h, 1, '1H', XNYS)).toBeNull();
   });
 });
+
+describe('normalizeBars — provider notes and blank rows', () => {
+  it('surfaces provider notes and counts blank rows as dropped', () => {
+    const rows: RawBar[] = [
+      { ...row('2026-10-14T13:30:00Z'), o: NaN, h: NaN, l: NaN, c: NaN },
+      row('2026-10-15T13:30:00Z'),
+      { ...row('2026-10-16T13:30:00Z'), note: 'close 709.8 taken from session price' },
+    ];
+    const r = normalizeBars(rows, 'D', XNYS, at('2026-10-17T01:25:00Z'));
+    expect(r.bars.map((b) => b.label)).toEqual(['2026-10-15', '2026-10-16']);
+    expect(r.warnings).toContain('1 malformed or off-calendar D row(s) dropped');
+    expect(r.warnings).toContain('D 2026-10-16: close 709.8 taken from session price');
+  });
+});

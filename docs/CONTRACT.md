@@ -49,7 +49,11 @@ Errors: `{error, details?}` with 400 (input, unknown symbol, future asOf), 401, 
 
 ## Data
 
-Providers return `{t, o, h, l, c, v}` rows. Adjustment: **split-adjusted, not dividend-adjusted** for every provider (Yahoo chart `quote` arrays; data-server `auto_adjust=False`). Futures are unadjusted; continuous `=F` symbols are Yahoo's front month, and specific contracts are available (`NQZ26`). Normalisation drops malformed or off-calendar rows (with a warning) and merges duplicate rows in one period, keeping the latest (Yahoo's trailing "live" weekly/monthly row).
+Providers return `{t, o, h, l, c, v}` rows. Adjustment: **split-adjusted, not dividend-adjusted** for every provider (Yahoo chart `quote` arrays; data-server `auto_adjust=False`). Futures are unadjusted; continuous `=F` symbols are Yahoo's front month, and specific contracts are available (`NQZ26`). Normalisation drops malformed or off-calendar rows (with a warning, never silently) and merges duplicate rows in one period, keeping the latest (Yahoo's trailing "live" weekly/monthly row).
+
+**Yahoo's blank latest close.** After a session ends, Yahoo can publish the newest bar with open/high/low/volume but a blank close (observed 2026-10-16). When the response's session summary (`meta.regularMarketTime`) falls inside that exact bar, its `regularMarketPrice` becomes the close and the frame carries a warning saying so. Nothing else is ever filled in; any other incomplete row is dropped with a warning.
+
+**Stale data.** For live Daily frames, if the newest complete bar is older than the calendar's last closed session, the frame's first warning reads `<provider> data is behind: newest complete daily bar is …, but the … session has closed`.
 
 Cache TTL: 15m 30 s, 30m 45 s, 1H 60 s, D 2 min, W 5 min, M 10 min; concurrent identical fetches share one request.
 

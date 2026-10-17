@@ -6,7 +6,7 @@
 import type { Frame, Level, LevelsRequest, LevelsResponse, Timeframe } from '@paradise/contract';
 import { buildFrame, computeProfile, defaultRowSize, ENGINE_VERSION, PROFILE_VERSION, type EngineLevel } from '@paradise/engine';
 import { COMPLETION_GRACE_S, confirmedIndexAt, displayRef, normalizeBars, type Bar } from './data/bars.ts';
-import { calendarCovers, nextPeriodKey, periodBounds, periodKeyOf, periodLabel, type ExchangeCalendar } from './data/calendar.ts';
+import { calendarCovers, lastClosedSession, nextPeriodKey, periodBounds, periodKeyOf, periodLabel, type ExchangeCalendar } from './data/calendar.ts';
 import { resolveInstrument, type ResolvedInstrument } from './data/instruments.ts';
 import type { Market } from './data/market.ts';
 import { iso } from './data/time.ts';
@@ -60,6 +60,12 @@ export async function computeLevels(req: LevelsRequest, deps: LevelsDeps): Promi
     const confirmedIndex = confirmedIndexAt(bars, asOf);
     const last = bars.length - 1;
     const developingIndex = wantDeveloping && last > confirmedIndex && !bars[last]!.complete ? last : null;
+    const staleness: string[] = [];
+    if (live && tf === 'D' && confirmedIndex >= 0) {
+      const expected = lastClosedSession(inst.cal, now, COMPLETION_GRACE_S);
+      const have = bars[confirmedIndex]!.key;
+      if (have < expected) staleness.push(`${set.provider} data is behind: newest complete daily bar is ${have}, but the ${expected} session has closed. Levels use ${have}.`);
+    }
     const f = buildFrame({ bars, displacement, confirmedIndex, developingIndex, lastPrice: lastPrice?.price ?? null });
     const ref = (i: number | null) => (i === null ? null : { time: iso(bars[i]!.t), label: bars[i]!.label });
     const disp = (i: number | null) => {
@@ -78,7 +84,7 @@ export async function computeLevels(req: LevelsRequest, deps: LevelsDeps): Promi
         closesVsPivot: f.facts.closesVsPivot,
       },
       barCount: bars.length,
-      warnings: [...(normWarnings.get(tf) ?? []), ...f.warnings],
+      warnings: [...staleness, ...(normWarnings.get(tf) ?? []), ...f.warnings],
     });
     for (const l of f.levels) levels.push(toPublic(l, tf, bars, inst));
 
