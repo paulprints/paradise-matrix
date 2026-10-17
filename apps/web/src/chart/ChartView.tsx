@@ -54,6 +54,15 @@ const candleColors = (P: Palette) => ({
   priceLineColor: P.seal,
 });
 
+/** Latest bars, default zoom, price axis fitted to the candles. */
+export function resetView(chart: IChartApi, series: ISeriesApi<'Candlestick'>) {
+  series.priceScale().setAutoScale(true);
+  const width = chart.timeScale().width(), gutter = labelGutter(width);
+  const spacing = Math.max(2, Math.min(14, (width - gutter) / INITIAL_BARS));
+  chart.timeScale().applyOptions({ barSpacing: spacing, rightOffset: Math.ceil(gutter / spacing) });
+  chart.timeScale().scrollToRealTime();
+}
+
 export function ChartView({ state, groups, heat, heatStyle, theme, onInspect, onNeedMore, onReady }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const h = useRef<{ chart: IChartApi; series: ISeriesApi<'Candlestick'>; model: RenderModel; heat: HeatLayer; levels: LevelsLayer } | null>(null);
@@ -134,16 +143,16 @@ export function ChartView({ state, groups, heat, heatStyle, theme, onInspect, on
     const sameSeries = prev && prev.symbol === instrument.symbol && prev.tf === chartTf;
 
     if (!sameSeries) {
+      // A new symbol or timeframe: fit the price axis to the new candles. Scrolling or dragging
+      // the axis turns auto-scale off, and the library would otherwise keep the old symbol's range.
+      c.series.priceScale().setAutoScale(true);
       c.chart.applyOptions({
         localization: { timeFormatter: (t: Time) => formatBarTime(t as number, chartTf, tz), priceFormatter: (p: number) => formatPrice(p, tick) },
         timeScale: { timeVisible: INTRADAY.has(chartTf), secondsVisible: false, tickMarkFormatter: (t: Time, kind: number) => formatTick(t as number, kind, tz) },
       });
       c.series.applyOptions({ priceFormat: { type: 'price', precision: decimalsForTick(tick), minMove: tick } });
       c.series.setData(data);
-      const width = c.chart.timeScale().width(), gutter = labelGutter(width);
-      const spacing = Math.max(2, Math.min(14, (width - gutter) / INITIAL_BARS));
-      c.chart.timeScale().applyOptions({ barSpacing: spacing, rightOffset: Math.ceil(gutter / spacing) });
-      c.chart.timeScale().scrollToRealTime();
+      resetView(c.chart, c.series);
     } else if (first < prev.first) {
       // More history arrived on the left: keep the view where it was.
       const range = c.chart.timeScale().getVisibleLogicalRange();
@@ -170,5 +179,13 @@ export function ChartView({ state, groups, heat, heatStyle, theme, onInspect, on
     c.levels.invalidate();
   }, [state, groups, heat, heatStyle]);
 
-  return <div ref={box} className="chart-box" />;
+  return (
+    <>
+      <div ref={box} className="chart-box" />
+      <button
+        className="btn chart-reset" title="Jump to the latest bars and fit the price axis (or double-click the price axis)"
+        onClick={() => { const c = h.current; if (c) resetView(c.chart, c.series); }}
+      >Reset view</button>
+    </>
+  );
 }
