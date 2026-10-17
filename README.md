@@ -8,7 +8,8 @@ One pipeline, one noun: **bars → levels → views**. Every pixel on screen tra
 packages/contract   API types shared by server and web (no math)
 packages/engine     SERVER-ONLY level arithmetic: the 31 audited formulas as one table, frames, Market Profile
 apps/server         Express API: data contract, exchange calendar, instruments, cache, auth, /api/levels
-apps/web            React app: level ladder + halftone heat, inspector, lookback, members admin
+apps/web            React app: canvas chart (candles over time-varying heat, levels as validity steps, live updates,
+                    drawing tools) built on TradingView Lightweight Charts; ladder view; inspector; members admin
 data-server         Python OHLC service (the "external" provider), fixed adjustment policy
 fixtures/           The audit's raw NinjaTrader captures; the golden test suite runs against them
 docs/               DESIGN (why), CONTRACT (what), MIGRATION (from v1)
@@ -16,7 +17,7 @@ docs/               DESIGN (why), CONTRACT (what), MIGRATION (from v1)
 
 ## What's verified
 
-`npm test` runs 99 tests. The ones that matter most:
+`npm test` runs every suite: engine golden reproduction, data contract, chart history, drawings, auth and web logic. The ones that matter most:
 
 - **Golden reproduction.** For all 7 native Daily/Weekly/Monthly captures, the engine reproduces the audit's per-plot results *exactly* — every price match, availability match and boundary-sensitive count in `dwm-results.json`, plus the README headline table (3,447 / 3,226 / 3,456 / 2,327 additional-plot matches, 0 mismatches).
 - **Data Box parity through the API.** The audit's QQQ bars go through the real HTTP endpoint; the 31 confirmed levels for the display bar equal what NinjaTrader's Data Box showed on 2026-09-09 (Daily), wk 2026-07-20 (Weekly) and 2026-01 (Monthly), with +1 displacement.

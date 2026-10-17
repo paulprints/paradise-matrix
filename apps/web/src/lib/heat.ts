@@ -48,6 +48,12 @@ export interface HeatInput {
 
 const kernel = (u: number) => (Math.abs(u) >= 1 ? 0 : (1 - u * u) ** 2);
 
+/** Weight one level contributes at `price`. Shared by the ladder and the chart. */
+export function contribution(tf: Timeframe, developing: boolean, levelPrice: number, price: number, bandwidth: number): number {
+  const k = kernel((price - levelPrice) / bandwidth);
+  return k <= 0 ? 0 : TF_WEIGHT[tf] * k * (developing ? 0.5 : 1);
+}
+
 export function computeHeat({ levels, min, max, rows = 200, bandwidth }: HeatInput): HeatRow[] {
   if (!(max > min) || !(bandwidth > 0) || rows < 2) return [];
   const priced = levels.filter((l): l is Level & { price: number } => l.state === 'active' && l.price !== null);
@@ -59,9 +65,8 @@ export function computeHeat({ levels, min, max, rows = 200, bandwidth }: HeatInp
     let score = 0;
     const contributors: HeatRow['contributors'] = [];
     for (const l of priced) {
-      const k = kernel((price - l.price) / bandwidth);
-      if (k <= 0) continue;
-      const w = TF_WEIGHT[l.tf] * k * (l.basis === 'developing' ? 0.5 : 1);
+      const w = contribution(l.tf, l.basis === 'developing', l.price, price, bandwidth);
+      if (w <= 0) continue;
       score += w;
       contributors.push({ id: l.id, weight: w });
     }

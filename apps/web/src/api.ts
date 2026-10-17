@@ -1,4 +1,4 @@
-import type { LevelsRequest, LevelsResponse, LoginResponse, User } from '@paradise/contract';
+import type { ChartRequest, ChartResponse, Drawing, DrawingsResponse, LevelsRequest, LevelsResponse, LoginResponse, User } from '@paradise/contract';
 
 const BASE = `${import.meta.env.VITE_API_URL ?? ''}/api`;
 const TOKEN_KEY = 'pp_token';
@@ -48,6 +48,9 @@ export const api = {
   me: () => request<{ user: User }>('GET', '/auth/me').then((r) => r.user),
   logout: () => tokenStore.clear(),
   levels: (req: LevelsRequest, signal?: AbortSignal) => request<LevelsResponse>('POST', '/levels', req, signal),
+  chart: (req: ChartRequest, signal?: AbortSignal) => request<ChartResponse>('POST', '/chart', req, signal),
+  drawings: (symbol: string, signal?: AbortSignal) => request<DrawingsResponse>('GET', `/drawings?symbol=${encodeURIComponent(symbol)}`, undefined, signal),
+  saveDrawings: (symbol: string, drawings: Drawing[]) => request<DrawingsResponse>('PUT', '/drawings', { symbol, drawings }),
   users: () => request<{ users: Array<User & { createdAt: string }> }>('GET', '/admin/users').then((r) => r.users),
   createUser: (username: string, password: string, isAdmin: boolean) => request<{ user: User }>('POST', '/admin/users', { username, password, isAdmin }),
   updateUser: (id: number, patch: { password?: string; isAdmin?: boolean }) => request<{ user: User }>('PATCH', `/admin/users/${id}`, patch),

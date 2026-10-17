@@ -5,6 +5,9 @@
 import { TIMEFRAMES, type LevelGroup, type Timeframe } from '@paradise/contract';
 
 export interface ViewState {
+  view: 'chart' | 'ladder';
+  /** Candle timeframe for the chart view. */
+  chartTf: Timeframe;
   symbol: string;
   timeframes: Timeframe[];
   displacement: 0 | 1;
@@ -18,8 +21,10 @@ export interface ViewState {
 }
 
 export const DEFAULT_VIEW: ViewState = {
+  view: 'chart',
+  chartTf: '5m',
   symbol: 'QQQ',
-  timeframes: ['M', 'W', 'D'],
+  timeframes: ['D', '15m'],
   displacement: 1,
   asOf: null,
   developing: false,
@@ -35,6 +40,9 @@ export const ZOOM_STEPS = [3, 5, 8, 12, 20, 40];
 export function parseView(search: string): ViewState {
   const q = new URLSearchParams(search);
   const v = { ...DEFAULT_VIEW };
+  if (q.get('v') === 'ladder') v.view = 'ladder';
+  const ct = q.get('ct');
+  if (ct && (TIMEFRAMES as string[]).includes(ct)) v.chartTf = ct as Timeframe;
   const sym = q.get('s');
   if (sym && /^[A-Za-z0-9./=^ -]{1,24}$/.test(sym)) v.symbol = sym.toUpperCase();
   const tf = q.get('tf')?.split(',').filter((t): t is Timeframe => (TIMEFRAMES as string[]).includes(t));
@@ -54,6 +62,8 @@ export function parseView(search: string): ViewState {
 
 export function serializeView(v: ViewState): string {
   const q = new URLSearchParams();
+  if (v.view !== 'chart') q.set('v', v.view);
+  if (v.chartTf !== DEFAULT_VIEW.chartTf) q.set('ct', v.chartTf);
   q.set('s', v.symbol);
   q.set('tf', v.timeframes.join(','));
   if (v.displacement === 0) q.set('d', '0');
