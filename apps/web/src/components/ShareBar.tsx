@@ -6,12 +6,14 @@ import type { ViewState } from '../lib/view.ts';
 import { configFromView, shareLink } from '../share/route.ts';
 import type { ShareSession } from '../share/useShare.ts';
 import { CopyLink } from './CopyLink.tsx';
+import { LinkAccessPicker } from './LinkAccessPicker.tsx';
+import { PeoplePanel } from './PeoplePanel.tsx';
 import { Popover } from './TopBar.tsx';
 
 const ROLE: Record<string, string> = { owner: 'Owner', editor: 'Can edit', viewer: 'View only' };
 const STATUS: Record<string, string> = { live: 'Live', connecting: 'Connecting…', offline: 'Reconnecting…', ended: 'Disconnected' };
 const ENDED: Record<string, string> = {
-  revoked: 'The owner changed this link. Ask them for the new one.',
+  revoked: 'The owner removed your access.',
   gone: 'The owner deleted this shared chart.',
   auth: 'Your session ended. Sign in again to rejoin.',
 };
@@ -34,6 +36,7 @@ export function ShareBar({ share, view, onExit }: { share: ShareSession; view: V
   const everyone = [...(you ? [you] : []), ...peers].filter((p, i, all) => all.findIndex((q) => q.userId === p.userId) === i);
   const presentingUser = share.presenterPeer?.userId;
   const presenterName = share.presenterPeer?.username;
+  const waiting = share.members.filter((m) => m.role === 'pending').length;
 
   return (
     <div className="sharebar" role="region" aria-label="Shared chart">
@@ -65,20 +68,16 @@ export function ShareBar({ share, view, onExit }: { share: ShareSession; view: V
       )}
       <button className="btn quiet" onClick={() => void share.copyToMine()} title="Add these drawings to your own chart for this instrument">Copy to my charts</button>
       {owner && (
-        <Popover label="Manage" wide>
+        <Popover label={<>People{waiting ? <span className="count" aria-label={`${waiting} waiting`}>{waiting}</span> : null}</>} wide onOpen={() => void share.refreshMembers()} className={waiting ? 'attention' : ''}>
           {(close) => (
             <div className="share-menu">
-              <CopyLink label="View link" note="watch live" url={shareLink(origin, info.id, info.viewKey)} />
-              <CopyLink label="Edit link" note="draw together" url={shareLink(origin, info.id, info.editKey)} />
+              <CopyLink label="Link" note="one link for everyone" url={shareLink(origin, info.id)} />
+              <LinkAccessPicker value={info.linkAccess} onChange={(v) => void share.setLinkAccess(v)} />
+              <PeoplePanel members={share.members} onSet={(id, r) => void share.setMember(id, r)} />
+              <h4>Chart</h4>
               <div className="row wrap">
                 <button className="btn" onClick={() => { void share.saveView(configFromView(view)); close(); }}>Save my view as the starting view</button>
-                <button className="btn" onClick={() => void share.setLocked(!info.locked)}>{info.locked ? 'Unlock drawings' : 'Lock drawings'}</button>
-              </div>
-              <h4>Revoke</h4>
-              <p className="note">Makes a new link; anyone using the old one is disconnected at once.</p>
-              <div className="row wrap">
-                <button className="btn" onClick={() => confirm('Replace the view link? People using it lose access.') && void share.rotate('view')}>New view link</button>
-                <button className="btn" onClick={() => confirm('Replace the edit link? People using it lose access.') && void share.rotate('edit')}>New edit link</button>
+                <button className="btn" onClick={() => void share.setLocked(!info.locked)} title="Nobody, you included, can change drawings while locked">{info.locked ? 'Unlock drawings' : 'Lock drawings'}</button>
                 <button className="btn danger" onClick={async () => { if (confirm(`Delete “${info.title}” for everyone?`) && (await share.remove())) onExit(); }}>Delete</button>
               </div>
             </div>

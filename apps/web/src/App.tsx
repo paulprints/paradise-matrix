@@ -22,6 +22,7 @@ import { useLevels } from './useLevels.ts';
 
 type Theme = 'plate' | 'paper';
 const readTheme = (): Theme => { try { return localStorage.getItem('pp_theme') === 'paper' ? 'paper' : 'plate'; } catch { return 'plate'; } };
+const readDetails = (): boolean => { try { return localStorage.getItem('pp_details') !== '0'; } catch { return true; } };
 const SAVE_LABEL: Record<SaveStatus, { label: string; warn?: boolean }> = { idle: { label: '' }, saving: { label: 'Saving' }, saved: { label: 'Saved' }, error: { label: 'Not saved', warn: true } };
 const LIVE_LABEL: Record<string, { label: string; warn?: boolean }> = { live: { label: 'Live' }, connecting: { label: 'Joining' }, offline: { label: 'Offline', warn: true }, ended: { label: 'Ended', warn: true } };
 
@@ -34,8 +35,9 @@ export function App() {
   const [theme, setTheme] = useState<Theme>(readTheme);
   const [row, setRow] = useState<HeatRow | null>(null);
   const [handles, setHandles] = useState<ChartHandles | null>(null);
-  // A shared chart lives at /c/<id>?k=<key>; its settings come from the share, not the address bar.
-  const route = useMemo(() => parseShareRoute(location.pathname, location.search), []);
+  const [details, setDetails] = useState(readDetails);
+  // A shared chart lives at /c/<id>; its settings come from the share, not the address bar.
+  const route = useMemo(() => parseShareRoute(location.pathname), []);
   const share = useShare(route, !!user);
 
   useEffect(() => {
@@ -45,6 +47,16 @@ export function App() {
   useEffect(() => {
     if (!tokenStore.get()) return;
     api.me().then(setUser).catch(() => tokenStore.clear()).finally(() => setChecking(false));
+  }, []);
+  useEffect(() => { try { localStorage.setItem('pp_details', details ? '1' : '0'); } catch { /* ignore */ } }, [details]);
+  // "I" shows or hides the details panel (not while typing).
+  useEffect(() => {
+    const key = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() !== 'i' || e.ctrlKey || e.metaKey || e.altKey || (e.target as HTMLElement)?.closest('input, textarea, select, [contenteditable]')) return;
+      setDetails((d) => !d);
+    };
+    window.addEventListener('keydown', key);
+    return () => window.removeEventListener('keydown', key);
   }, []);
   useEffect(() => {
     const onExpired = () => { setUser(null); setNotice('Your session ended. Sign in again to continue.'); };
@@ -99,6 +111,28 @@ export function App() {
   if (checking) return null;
   if (!user) return <SignIn notice={notice} onSignedIn={(u) => { setNotice(null); setUser(u); }} />;
   if (page === 'members' && user.isAdmin) return <Members me={user} onBack={() => setPage('matrix')} />;
+  if (route && share.denied) {
+    const d = share.denied;
+    return (
+      <div className="signin">
+        <div className="share-gone" role="status" aria-live="polite">
+          {d.access === 'pending' ? (
+            <>
+              <span className="waiting-dot" aria-hidden="true" />
+              <h2>Waiting for {d.owner}</h2>
+              <p className="dim">You’ve asked to join “{d.title}”. This page opens the chart as soon as {d.owner} lets you in.</p>
+            </>
+          ) : (
+            <>
+              <h2>No access</h2>
+              <p className="dim">{d.owner} removed your access to “{d.title}”. Ask them if you think that’s a mistake.</p>
+            </>
+          )}
+          <a className="btn" href="/">Go to your charts</a>
+        </div>
+      </div>
+    );
+  }
   if (route && !share.info) {
     return (
       <div className="signin">
@@ -128,7 +162,7 @@ export function App() {
       </div>
       {isChart ? (
         chart.state ? (
-          <div className={`main ${draw.editable ? 'with-rail' : ''}`}>
+          <div className={`main ${draw.editable ? 'with-rail' : ''} ${details ? '' : 'no-side'}`}>
             {draw.editable && <ToolRail
               tool={draw.tool} setTool={draw.setTool} color={draw.color} setColor={draw.setColor}
               hasSelection={!!draw.selected} canExtend={draw.selectedDrawing?.kind === 'trend'}
@@ -148,13 +182,13 @@ export function App() {
                 />
               )}
             </div>
-            <Inspector data={chart.state} resolve={resolveChart} heatStyle={view.heatStyle} row={row} title="Read the chart" hint="Point at the chart to see which levels build the heat at that price and time." />
+            {details ? <Inspector data={chart.state} resolve={resolveChart} heatStyle={view.heatStyle} row={row} title="Read the chart" hint="Point at the chart to see which levels build the heat at that price and time." onClose={() => setDetails(false)} /> : <button className="side-tab" onClick={() => setDetails(true)} aria-controls="details-panel" aria-expanded={false} title="Show details (I)"><span>Details</span></button>}
           </div>
         ) : <div className="signin"><p className="dim">{error ? 'Nothing to show yet.' : `Loading ${view.symbol}…`}</p></div>
       ) : ladder.data ? (
-        <div className="main">
+        <div className={`main ${details ? '' : 'no-side'}`}>
           <Ladder data={ladder.data} levels={ladderLevels} heat={view.heat} heatStyle={view.heatStyle} zoom={view.zoom} onZoom={(zoom) => setView({ zoom })} onInspect={setRow} />
-          <Inspector data={ladder.data} resolve={resolveLadder} heatStyle={view.heatStyle} row={row} />
+          {details ? <Inspector data={ladder.data} resolve={resolveLadder} heatStyle={view.heatStyle} row={row} onClose={() => setDetails(false)} /> : <button className="side-tab" onClick={() => setDetails(true)} aria-controls="details-panel" aria-expanded={false} title="Show details (I)"><span>Details</span></button>}
         </div>
       ) : (
         <div className="signin"><p className="dim">{error ? 'Nothing to show yet.' : `Loading ${view.symbol}…`}</p></div>

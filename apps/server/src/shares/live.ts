@@ -6,9 +6,10 @@
  *   → ops / presence / present messages, relayed to the room
  *
  * The server is authoritative for drawings (SharesStore.apply, same merge rule
- * as clients). Roles come from the share: owner and editors can change
- * drawings unless the share is locked; viewers only watch. Key rotation, lock
- * and delete take effect on open connections immediately.
+ * as clients). Roles come from the share's people list: owner and editors can
+ * change drawings unless the share is locked; viewers only watch. Role
+ * changes, removals, lock and delete take effect on open connections at once,
+ * and the owner's people list updates live (joins, requests, who's online).
  *
  * Browsers can't set headers on a WebSocket, so the JWT travels in the first
  * message (never in the URL, which proxies log). Origins are checked on the
@@ -21,7 +22,7 @@ import { randomBytes } from 'node:crypto';
 import jwt from 'jsonwebtoken';
 import { WebSocketServer, type WebSocket, type RawData } from 'ws';
 import { z } from 'zod';
-import { LIVE_CLOSE, LIVE_OPS_BUDGET, type LiveServerMessage, type Peer, type PresenterView, type ShareInfo, type ShareRole } from '@paradise/contract';
+import { LIVE_CLOSE, LIVE_OPS_BUDGET, type LiveServerMessage, type Peer, type PresenterView } from '@paradise/contract';
 import type { Config } from '../config.ts';
 import type { UserStore } from '../auth/db.ts';
 import { anchorSchema, liveOpSchema, presenterViewSchema } from '../schemas.ts';
@@ -37,6 +38,7 @@ const PRESENCE_PER_S = 30;
 const PEER_COLORS = ['#e0896b', '#8fb3d9', '#cda64b', '#b48ead', '#86bba0', '#d08770', '#88c0d0', '#ebcb8b'];
 
 const clientMessage = z.discriminatedUnion('type', [
+  // `key` is accepted and ignored: clients from the two-link version still send it.
   z.object({ type: z.literal('auth'), token: z.string().min(10).max(2000), share: z.string().min(1).max(40), key: z.string().max(100).optional() }),
   z.object({ type: z.literal('ops'), ops: z.array(liveOpSchema).min(1).max(LIVE_OPS_BUDGET.perMessage) }),
   z.object({ type: z.literal('presence'), cursor: anchorSchema.nullable(), view: presenterViewSchema.optional() }),
@@ -49,7 +51,6 @@ interface Conn {
   alive: boolean;
   peer?: Peer;
   shareId?: string;
-  key?: string;
   opsBudget: { tokens: number; at: number };
   /** Messages from one connection are handled strictly in order. */
   inbox: Promise<void>;
@@ -65,6 +66,7 @@ export class LiveHub {
   private readonly rooms = new Map<string, Room>();
   private readonly conns = new Set<Conn>();
   private heartbeat: ReturnType<typeof setInterval> | null = null;
+  private closed = false;
 
   constructor(private readonly deps: LiveDeps) {}
 
@@ -95,6 +97,7 @@ export class LiveHub {
   }
 
   close() {
+    this.closed = true;
     if (this.heartbeat) clearInterval(this.heartbeat);
     for (const c of this.conns) c.ws.terminate();
     this.wss.close();
@@ -132,12 +135,12 @@ export class LiveHub {
       return this.send(c, { type: 'error', message: 'malformed message' });
     }
     if (msg.type === 'ping') return this.send(c, { type: 'pong' });
-    if (msg.type === 'auth') return this.auth(c, msg.token, msg.share, msg.key);
+    if (msg.type === 'auth') return this.auth(c, msg.token, msg.share);
     if (!c.peer || !c.shareId) return c.ws.close(LIVE_CLOSE.auth, 'sign-in required');
 
     if (msg.type === 'ops') {
-      const access = await this.deps.shares.access(c.shareId, c.peer.userId, c.key);
-      if (!access) return c.ws.close(LIVE_CLOSE.forbidden, 'access revoked');
+      const access = await this.deps.shares.access(c.shareId, c.peer.userId);
+      if (!access || access.status !== 'ok') return c.ws.close(LIVE_CLOSE.forbidden, 'access removed');
       if (access.role === 'viewer' || access.share.locked) {
         const ids = [...new Set(msg.ops.map((o) => o.id))];
         return this.send(c, { type: 'reject', ops: await this.deps.shares.current(c.shareId, ids), reason: access.share.locked ? 'this chart is locked' : 'view-only link' });
@@ -175,24 +178,28 @@ export class LiveHub {
     return true;
   }
 
-  private async auth(c: Conn, token: string, shareId: string, key?: string) {
+  private async auth(c: Conn, token: string, shareId: string) {
     if (c.peer) return this.send(c, { type: 'error', message: 'already signed in' });
     let userId: number;
     try { userId = Number((jwt.verify(token, this.deps.config.jwtSecret) as jwt.JwtPayload).sub); }
     catch { return c.ws.close(LIVE_CLOSE.auth, 'session expired'); }
     const user = await this.deps.store.byId(userId);
     if (!user) return c.ws.close(LIVE_CLOSE.auth, 'account no longer exists');
-    const access = await this.deps.shares.access(shareId, userId, key);
+    const access = await this.deps.shares.join(shareId, userId);
     if (!access) return c.ws.close(LIVE_CLOSE.gone, 'shared chart not found');
+    if (access.status !== 'ok' || !access.role) {
+      if (access.added) void this.notifyMembers(shareId);
+      return c.ws.close(LIVE_CLOSE.forbidden, access.status === 'pending' ? 'waiting for the owner' : 'access removed');
+    }
     c.peer = { id: randomBytes(6).toString('hex'), userId, username: user.username, role: access.role, color: PEER_COLORS[userId % PEER_COLORS.length]! };
     c.shareId = shareId;
-    c.key = key;
     let room = this.rooms.get(shareId);
     if (!room) this.rooms.set(shareId, (room = { conns: new Set(), presenter: null }));
     const peers = [...room.conns].map((x) => x.peer!).filter(Boolean);
     room.conns.add(c);
     this.send(c, { type: 'welcome', you: c.peer, peers, drawings: await this.deps.shares.drawings(shareId), presenter: room.presenter, share: access.share });
     this.broadcast(shareId, { type: 'peer', event: 'join', peer: c.peer }, c);
+    void this.notifyMembers(shareId);
   }
 
   private leave(c: Conn) {
@@ -202,21 +209,44 @@ export class LiveHub {
     this.broadcast(c.shareId, { type: 'peer', event: 'leave', peer: c.peer });
     if (room.presenter === c.peer.id) { room.presenter = null; this.broadcast(c.shareId, { type: 'present', presenter: null }); }
     if (!room.conns.size) this.rooms.delete(c.shareId);
+    else void this.notifyMembers(c.shareId);
   }
 
   /**
-   * Re-check every connection to a share after the owner changes it: rotated keys
-   * disconnect old links, role changes take effect, everyone gets the new share info.
+   * Re-check every connection to a share after the owner changes it: removed
+   * people are disconnected, role changes take effect (and the room sees
+   * them), everyone gets the new share info and their role.
    */
   async refresh(shareId: string) {
     const room = this.rooms.get(shareId);
     if (!room) return;
     for (const c of [...room.conns]) {
-      const access = await this.deps.shares.access(shareId, c.peer!.userId, c.key);
-      if (!access) { c.ws.close(LIVE_CLOSE.forbidden, 'access revoked'); continue; }
-      c.peer = { ...c.peer!, role: access.role as ShareRole };
-      this.send(c, { type: 'share', share: access.role === 'owner' ? access.share : stripKeys(access.share) });
+      const access = await this.deps.shares.access(shareId, c.peer!.userId);
+      if (!access || access.status !== 'ok' || !access.role) { c.ws.close(LIVE_CLOSE.forbidden, 'access removed'); continue; }
+      if (access.role !== c.peer!.role) {
+        c.peer = { ...c.peer!, role: access.role };
+        this.broadcast(shareId, { type: 'peer', event: 'update', peer: c.peer }, c);
+      }
+      this.send(c, { type: 'share', share: access.share, role: access.role });
     }
+    await this.notifyMembers(shareId);
+  }
+
+  /** Send the owner's open tabs the current people list (who joined, who's waiting, who's online). */
+  async notifyMembers(shareId: string) {
+    const owners = () => [...(this.rooms.get(shareId)?.conns ?? [])].filter((c) => c.peer?.role === 'owner');
+    if (this.closed || !owners().length) return;
+    try {
+      const members = await this.deps.shares.members(shareId, this.onlineUsers(shareId));
+      if (!this.closed) for (const c of owners()) this.send(c, { type: 'members', members });
+    } catch (e) {
+      if (!this.closed) console.error('[live] people list', e); // best-effort; the owner can reopen the panel
+    }
+  }
+
+  /** Signed-in users with a tab open on this share. */
+  onlineUsers(shareId: string): Set<number> {
+    return new Set([...(this.rooms.get(shareId)?.conns ?? [])].flatMap((c) => (c.peer ? [c.peer.userId] : [])));
   }
 
   /** The share was deleted: close its room. */
@@ -225,4 +255,3 @@ export class LiveHub {
   }
 }
 
-const stripKeys = (s: ShareInfo): ShareInfo => { const { viewKey: _v, editKey: _e, ...rest } = s; return rest; };

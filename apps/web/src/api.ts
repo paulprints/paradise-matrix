@@ -1,4 +1,4 @@
-import type { ChartRequest, ChartResponse, Drawing, DrawingsResponse, LevelsRequest, LevelsResponse, LoginResponse, ShareConfig, ShareInfo, ShareOpenResponse, User } from '@paradise/contract';
+import type { ChartRequest, ChartResponse, Drawing, DrawingsResponse, LevelsRequest, LevelsResponse, LoginResponse, LinkAccess, MemberRole, ShareConfig, ShareInfo, ShareMember, ShareOpenResponse, User } from '@paradise/contract';
 
 export const API_ORIGIN: string | undefined = import.meta.env.VITE_API_URL || undefined;
 const BASE = `${(API_ORIGIN ?? '').replace(/\/+$/, '')}/api`;
@@ -52,12 +52,14 @@ export const api = {
   chart: (req: ChartRequest, signal?: AbortSignal) => request<ChartResponse>('POST', '/chart', req, signal),
   drawings: (symbol: string, signal?: AbortSignal) => request<DrawingsResponse>('GET', `/drawings?symbol=${encodeURIComponent(symbol)}`, undefined, signal),
   saveDrawings: (symbol: string, drawings: Drawing[]) => request<DrawingsResponse>('PUT', '/drawings', { symbol, drawings }),
-  createShare: (title: string, config: ShareConfig, drawings: Drawing[]) => request<{ share: ShareInfo }>('POST', '/shares', { title, config, drawings }).then((r) => r.share),
+  createShare: (title: string, config: ShareConfig, drawings: Drawing[], linkAccess: LinkAccess) => request<{ share: ShareInfo }>('POST', '/shares', { title, config, drawings, linkAccess }).then((r) => r.share),
   myShares: (signal?: AbortSignal) => request<{ shares: ShareInfo[] }>('GET', '/shares', undefined, signal).then((r) => r.shares),
-  openShare: (id: string, key: string | null, signal?: AbortSignal) => request<ShareOpenResponse>('GET', `/shares/${encodeURIComponent(id)}${key ? `?k=${encodeURIComponent(key)}` : ''}`, undefined, signal),
-  updateShare: (id: string, patch: { title?: string; locked?: boolean; rotate?: 'view' | 'edit'; config?: ShareConfig }) => request<{ share: ShareInfo }>('PATCH', `/shares/${encodeURIComponent(id)}`, patch).then((r) => r.share),
+  openShare: (id: string, signal?: AbortSignal) => request<ShareOpenResponse>('GET', `/shares/${encodeURIComponent(id)}`, undefined, signal),
+  shareMembers: (id: string, signal?: AbortSignal) => request<{ members: ShareMember[] }>('GET', `/shares/${encodeURIComponent(id)}/members`, undefined, signal).then((r) => r.members),
+  setShareMember: (id: string, userId: number, role: Exclude<MemberRole, 'pending'>) => request<{ members: ShareMember[] }>('PATCH', `/shares/${encodeURIComponent(id)}/members/${userId}`, { role }).then((r) => r.members),
+  updateShare: (id: string, patch: { title?: string; locked?: boolean; linkAccess?: LinkAccess; config?: ShareConfig }) => request<{ share: ShareInfo }>('PATCH', `/shares/${encodeURIComponent(id)}`, patch).then((r) => r.share),
   deleteShare: (id: string) => request<void>('DELETE', `/shares/${encodeURIComponent(id)}`),
-  copyShare: (id: string, key: string | null) => request<{ copied: number; skipped: number; symbol: string }>('POST', `/shares/${encodeURIComponent(id)}/copy${key ? `?k=${encodeURIComponent(key)}` : ''}`),
+  copyShare: (id: string) => request<{ copied: number; skipped: number; symbol: string }>('POST', `/shares/${encodeURIComponent(id)}/copy`),
   users: () => request<{ users: Array<User & { createdAt: string }> }>('GET', '/admin/users').then((r) => r.users),
   createUser: (username: string, password: string, isAdmin: boolean) => request<{ user: User }>('POST', '/admin/users', { username, password, isAdmin }),
   updateUser: (id: number, patch: { password?: string; isAdmin?: boolean }) => request<{ user: User }>('PATCH', `/admin/users/${id}`, patch),

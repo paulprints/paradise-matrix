@@ -5,6 +5,7 @@ import { BACKOFF_MS, backoff, LiveConnection } from '../src/share/live.ts';
 import { Outbox } from '../src/share/outbox.ts';
 import { configFromView, liveUrl, parseShareRoute, shareLink, viewFromConfig } from '../src/share/route.ts';
 import { DEFAULT_VIEW } from '../src/lib/view.ts';
+import { ago } from '../src/lib/ago.ts';
 
 const line = (id: string, p = 700): Drawing => ({ id, kind: 'hline', color: 'ink', p });
 const seq = () => { let i = 100; return () => i++; };
@@ -97,16 +98,15 @@ describe('SharedDoc', () => {
 });
 
 describe('share routes', () => {
-  it('parses /c/<id>?k=<key> and nothing else', () => {
-    expect(parseShareRoute('/c/AbC123xyZ0', '?k=abcdefghij_-12')).toEqual({ id: 'AbC123xyZ0', key: 'abcdefghij_-12' });
-    expect(parseShareRoute('/c/AbC123xyZ0/', '')).toEqual({ id: 'AbC123xyZ0', key: null });
-    expect(parseShareRoute('/c/AbC123xyZ0', '?k=<script>')).toEqual({ id: 'AbC123xyZ0', key: null });
-    expect(parseShareRoute('/', '?s=QQQ')).toBeNull();
-    expect(parseShareRoute('/c/../x', '')).toBeNull();
+  it('parses /c/<id> and nothing else', () => {
+    expect(parseShareRoute('/c/AbC123xyZ0')).toEqual({ id: 'AbC123xyZ0' });
+    expect(parseShareRoute('/c/AbC123xyZ0/')).toEqual({ id: 'AbC123xyZ0' });
+    expect(parseShareRoute('/')).toBeNull();
+    expect(parseShareRoute('/c/../x')).toBeNull();
+    expect(parseShareRoute('/c/abc')).toBeNull();
   });
 
   it('builds links and the live URL next to the API', () => {
-    expect(shareLink('https://app.example', 'abc123', 'k-1/+')).toBe('https://app.example/c/abc123?k=k-1%2F%2B');
     expect(shareLink('https://app.example', 'abc123')).toBe('https://app.example/c/abc123');
     expect(liveUrl('https://api.printersbackend.org', { protocol: 'https:', host: 'x' })).toBe('wss://api.printersbackend.org/api/live');
     expect(liveUrl('http://localhost:3002/', { protocol: 'http:', host: 'x' })).toBe('ws://localhost:3002/api/live');
@@ -145,7 +145,7 @@ describe('LiveConnection', () => {
   const make = (token: string | null = 'tok') => {
     const statuses: string[] = [], msgs: unknown[] = [];
     const conn = new LiveConnection({
-      url: 'ws://x/api/live', auth: () => ({ token, share: 's1', key: 'k1' }),
+      url: 'ws://x/api/live', auth: () => ({ token, share: 's1' }),
       onMessage: (m) => msgs.push(m), onStatus: (s, r) => statuses.push(r ? `${s}:${r}` : s),
       WebSocket: FakeWS as unknown as typeof WebSocket, random: () => 0.5,
     });
@@ -158,7 +158,7 @@ describe('LiveConnection', () => {
     const ws = FakeWS.all[0]!;
     expect(conn.send({ type: 'ping' })).toBe(false);
     ws.open();
-    expect(ws.sent[0]).toEqual({ type: 'auth', token: 'tok', share: 's1', key: 'k1' });
+    expect(ws.sent[0]).toEqual({ type: 'auth', token: 'tok', share: 's1' });
     expect(conn.send({ type: 'ping' })).toBe(false);
     ws.recv(welcome);
     expect(conn.send({ type: 'ping' })).toBe(true);
@@ -255,5 +255,16 @@ describe('Outbox', () => {
     box.clear();
     vi.advanceTimersByTime(30_000);
     expect(box.pending).toBe(0);
+  });
+});
+
+describe('ago', () => {
+  const now = Date.parse('2026-10-17T20:00:00Z');
+  it('reads SQLite UTC stamps and ISO strings', () => {
+    expect(ago('2026-10-17 19:59:30', now)).toBe('just now');
+    expect(ago('2026-10-17 19:55:00', now)).toBe('5 min ago');
+    expect(ago('2026-10-17T17:00:00Z', now)).toBe('3 h ago');
+    expect(ago('2026-10-15 20:00:00', now)).toBe('2 d ago');
+    expect(ago('nonsense', now)).toBe('');
   });
 });

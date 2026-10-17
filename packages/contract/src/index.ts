@@ -250,6 +250,21 @@ export interface ShareConfig {
 }
 
 export type ShareRole = 'owner' | 'editor' | 'viewer';
+/** What someone gets the first time they open a shared chart's link. 'approval': they wait until the owner lets them in. */
+export type LinkAccess = 'viewer' | 'editor' | 'approval';
+/** A person's standing on a share. Pending: asked to join. Removed: the owner took access away (the link no longer works for them). */
+export type MemberRole = 'viewer' | 'editor' | 'pending' | 'removed';
+export const LINK_ACCESS: readonly LinkAccess[] = ['viewer', 'editor', 'approval'];
+
+export interface ShareMember {
+  userId: number;
+  username: string;
+  role: MemberRole;
+  joinedAt: string;
+  lastSeen: string;
+  /** Connected right now. */
+  online: boolean;
+}
 
 export interface ShareInfo {
   id: string;
@@ -260,9 +275,8 @@ export interface ShareInfo {
   locked: boolean;
   createdAt: string;
   updatedAt: string;
-  /** Link keys. Only returned to the owner. Rotating a key revokes old links. */
-  viewKey?: string;
-  editKey?: string;
+  /** What people opening the link for the first time get. */
+  linkAccess: LinkAccess;
 }
 
 /**
@@ -275,6 +289,8 @@ export type VersionedDrawing = Drawing & { v: number; n: number };
 export interface LiveOp { id: string; v: number; n: number; del?: true; d?: Drawing }
 
 export interface ShareOpenResponse { share: ShareInfo; role: ShareRole; drawings: VersionedDrawing[] }
+/** `details` of a 403 from GET /api/shares/:id: why you can't open it yet. */
+export interface ShareDenied { access: 'pending' | 'removed'; title: string; owner: string }
 
 /** What a presenter is looking at; followers mirror it. Times are unix seconds. */
 export interface PresenterView { chartTf: Timeframe; timeframes: Timeframe[]; from: number; to: number }
@@ -289,7 +305,7 @@ export interface Peer {
 }
 
 export type LiveClientMessage =
-  | { type: 'auth'; token: string; share: string; key?: string }
+  | { type: 'auth'; token: string; share: string }
   | { type: 'ops'; ops: LiveOp[] }
   | { type: 'presence'; cursor: Anchor | null; view?: PresenterView }
   | { type: 'present'; on: boolean }
@@ -300,10 +316,13 @@ export type LiveServerMessage =
   | { type: 'ops'; by: string; ops: LiveOp[] }
   /** Your ops that lost; each carries the server's current state for that drawing. */
   | { type: 'reject'; ops: LiveOp[]; reason: string }
-  | { type: 'peer'; event: 'join' | 'leave'; peer: Peer }
+  | { type: 'peer'; event: 'join' | 'leave' | 'update'; peer: Peer }
   | { type: 'presence'; from: string; cursor: Anchor | null; view?: PresenterView }
   | { type: 'present'; presenter: string | null }
-  | { type: 'share'; share: ShareInfo }
+  /** The share changed (title, lock, link access) or your role did. */
+  | { type: 'share'; share: ShareInfo; role: ShareRole }
+  /** Owner only: the people list changed (someone joined, asked to join, came online, or had their access changed). */
+  | { type: 'members'; members: ShareMember[] }
   | { type: 'error'; message: string }
   | { type: 'pong' };
 

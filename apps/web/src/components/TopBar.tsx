@@ -136,7 +136,8 @@ export function TopBar({ view, setView, anchors, user, theme, onTheme, onAdmin, 
         <p><strong>Heat.</strong> Ink density shows how many levels overlap, weighted by timeframe (M 3, W 2, D 1). The scale is fixed by the frames you show (three overlapping levels of the heaviest frame fill it), so a quiet market looks quiet. Point at a band to see exactly which levels build it.</p>
         <p><strong>Timeframes.</strong> Pick one, or stack several to see higher-timeframe levels together.</p>
         <p><strong>Look back.</strong> Step to an earlier completed bar to see the levels as they stood at that close. Nothing after that moment is used.</p>
-        <p><strong>Share.</strong> Use <em>Share</em> to make a shared chart: a view link lets members watch, an edit link lets them draw with you live. Everyone sees each other’s cursors; <em>Present</em> makes everyone follow your view. The address bar also holds your view if you just want to send a bookmark.</p>
+        <p><strong>Share.</strong> <em>Share</em> makes a shared chart with one link. Everyone who opens it shows up under <em>People</em>, where you choose who can view or edit (or make newcomers ask first). Everyone sees each other’s cursors; <em>Present</em> makes everyone follow your view.</p>
+        <p><strong>Details panel.</strong> Close it with × (or press <kbd>I</kbd>) for a wider chart; the <em>Details</em> tab on the right brings it back.</p>
       </Popover>
       <Popover label={user.username}>
         <p className="note">Signed in as {user.username}{user.isAdmin ? ' (admin)' : ''}.</p>

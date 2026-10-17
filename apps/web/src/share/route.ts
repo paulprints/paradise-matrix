@@ -2,17 +2,15 @@
 import type { ShareConfig } from '@paradise/contract';
 import type { ViewState } from '../lib/view.ts';
 
-export interface ShareRoute { id: string; key: string | null }
+export interface ShareRoute { id: string }
 
-/** `/c/<id>?k=<key>` → route. The key is optional (owners don't need one). */
-export function parseShareRoute(pathname: string, search: string): ShareRoute | null {
+/** `/c/<id>` → route. (Links from the two-link version carry `?k=…`; it's ignored, the id is what matters.) */
+export function parseShareRoute(pathname: string): ShareRoute | null {
   const m = /^\/c\/([0-9A-Za-z]{6,20})\/?$/.exec(pathname);
-  if (!m) return null;
-  const k = new URLSearchParams(search).get('k');
-  return { id: m[1]!, key: k && /^[\w-]{8,100}$/.test(k) ? k : null };
+  return m ? { id: m[1]! } : null;
 }
 
-export const shareLink = (origin: string, id: string, key?: string) => `${origin}/c/${id}${key ? `?k=${encodeURIComponent(key)}` : ''}`;
+export const shareLink = (origin: string, id: string) => `${origin}/c/${id}`;
 
 /** WebSocket endpoint: next to the API when it lives elsewhere, else this origin (Vite proxies it in dev). */
 export function liveUrl(apiBase: string | undefined, loc: { protocol: string; host: string }): string {
