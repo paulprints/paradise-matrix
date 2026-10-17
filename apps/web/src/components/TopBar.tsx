@@ -110,10 +110,11 @@ export function TopBar({ view, setView, anchors, user, theme, onTheme, onAdmin, 
         <label className="toggle"><input type="checkbox" checked={view.heat} onChange={(e) => setView({ heat: e.target.checked })} />Heat</label>
         <h4>Displacement</h4>
         <div className="seg" role="group" aria-label="Displacement">
-          <button aria-pressed={view.displacement === 1} onClick={() => setView({ displacement: 1 })}>+1 normal</button>
-          <button aria-pressed={view.displacement === 0} onClick={() => setView({ displacement: 0 })}>0</button>
+          <button aria-pressed={view.displacement === 1} onClick={() => setView({ displacement: 1 })}>+1 forward</button>
+          <button aria-pressed={view.displacement === 0} onClick={() => setView({ displacement: 0 })}>0 same bar</button>
         </div>
-        <p className="note">+1 draws each bar’s levels on the next bar. The arithmetic is identical either way.</p>
+        <p className="note"><strong>+1 forward (normal):</strong> levels from the bar that just closed, drawn on the next bar, so they’re set before it trades.</p>
+        <p className="note"><strong>0 same bar:</strong> each bar’s levels drawn on that bar. They use its own high, low and close, so they keep moving until it closes. Use it to match charts set to 0.</p>
       </Popover>
       <Popover label="Help" wide>
         <p><strong>Chart.</strong> Candles over the heat. Every level is drawn across exactly the bars it applied to, so when a 15m bar closes a new 15m level starts and the old one stays where it was. Thicker lines are higher timeframes. Scroll left for more history.</p>
