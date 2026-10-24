@@ -41,7 +41,7 @@ export function usePresence(
     layer.current = l;
     const paint = () => {
       const { share: s } = live.current;
-      l.cursors = s.cursors.list().map(({ peer, at }) => ({ at, name: peer.username, color: peer.color, presenting: peer.id === s.presenter }));
+      l.cursors = s.cursors.list().map(({ peer, at }) => ({ id: peer.id, at, name: peer.username, color: peer.color, presenting: peer.id === s.presenter }));
       l.invalidate();
     };
     paint();

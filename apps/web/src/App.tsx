@@ -23,7 +23,7 @@ import { useLevels } from './useLevels.ts';
 type Theme = 'plate' | 'paper';
 const readTheme = (): Theme => { try { return localStorage.getItem('pp_theme') === 'paper' ? 'paper' : 'plate'; } catch { return 'plate'; } };
 const readDetails = (): boolean => { try { return localStorage.getItem('pp_details') !== '0'; } catch { return true; } };
-const SAVE_LABEL: Record<SaveStatus, { label: string; warn?: boolean }> = { idle: { label: '' }, saving: { label: 'Saving' }, saved: { label: 'Saved' }, error: { label: 'Not saved', warn: true } };
+const SAVE_LABEL: Record<SaveStatus, { label: string; warn?: boolean }> = { idle: { label: '' }, saving: { label: 'Saving' }, saved: { label: 'Saved' }, error: { label: 'Not saved', warn: true }, conflict: { label: 'Changed in another tab: reloaded', warn: true } };
 const LIVE_LABEL: Record<string, { label: string; warn?: boolean }> = { live: { label: 'Live' }, connecting: { label: 'Joining' }, offline: { label: 'Offline', warn: true }, ended: { label: 'Ended', warn: true } };
 
 export function App() {

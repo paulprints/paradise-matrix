@@ -37,7 +37,7 @@ export function useShare(route: ShareRoute | null, enabled: boolean) {
   const doc = useRef(new SharedDoc());
   const conn = useRef<LiveConnection | null>(null);
   const outbox = useRef<Outbox | null>(null);
-  const drawingListeners = useRef(new Set<(d: Drawing[]) => void>());
+  const drawingListeners = useRef(new Set<(d: Drawing[], refused?: string[]) => void>());
   const cursors = useRef(new Map<string, Anchor>());
   const cursorListeners = useRef(new Set<() => void>());
   const peersRef = useRef<Peer[]>([]);
@@ -50,7 +50,7 @@ export function useShare(route: ShareRoute | null, enabled: boolean) {
     if (noticeTimer.current) clearTimeout(noticeTimer.current);
     if (m) noticeTimer.current = setTimeout(() => setNoticeState(null), NOTICE_MS);
   }, []);
-  const emitDrawings = () => { const d = doc.current.list(); drawingListeners.current.forEach((cb) => cb(d)); };
+  const emitDrawings = (refused?: string[]) => { const d = doc.current.list(); drawingListeners.current.forEach((cb) => cb(d, refused)); };
   const emitCursors = () => cursorListeners.current.forEach((cb) => cb());
   const updatePeers = (next: Peer[]) => { peersRef.current = next; setPeers(next); };
   const membersSeen = useRef(false);
@@ -94,7 +94,7 @@ export function useShare(route: ShareRoute | null, enabled: boolean) {
         break;
       case 'reject':
         doc.current.force(m.ops);
-        emitDrawings();
+        emitDrawings(m.ops.map((o) => o.id));
         setNotice(`Change not saved: ${m.reason}.`);
         break;
       case 'peer':
