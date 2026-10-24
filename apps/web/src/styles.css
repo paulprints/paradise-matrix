@@ -22,6 +22,11 @@
   --step-1: 1.125rem;
   --step-2: 1.5rem;
   --step-3: 2.25rem;
+  /* Motion: fast for press/hover, base for panels and state changes, slow for one-time moments. Mirrored in lib/motion.ts. */
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 320ms;
+  --ease-out: cubic-bezier(0.33, 1, 0.68, 1);
   color-scheme: dark;
 }
 :root[data-theme='paper'] {
@@ -180,8 +185,8 @@ a.btn.primary { color: var(--plate); }
 @media (prefers-reduced-motion: no-preference) {
   /* The brand mark settles once: dots grow from the centre outwards, then the bar draws across. */
   .dot-mark circle, .dot-mark rect { transform-box: fill-box; transform-origin: center; }
-  .dot-mark circle { animation: pm-dot-settle 320ms cubic-bezier(0.34, 1.56, 0.64, 1) calc(var(--ring) * 70ms) both; }
-  .dot-mark rect { animation: pm-bar-draw 260ms ease-out 260ms both; }
+  .dot-mark circle { animation: pm-dot-settle var(--dur-slow) cubic-bezier(0.34, 1.56, 0.64, 1) calc(var(--ring) * 70ms) both; }
+  .dot-mark rect { animation: pm-bar-draw var(--dur-base) var(--ease-out) var(--dur-slow) both; }
   @keyframes pm-dot-settle { from { opacity: 0; transform: scale(0.2); } }
   @keyframes pm-bar-draw { from { transform: scaleX(0); } }
 }
@@ -211,7 +216,7 @@ a.btn.primary { color: var(--plate); }
 .help-panel p { margin: 0; font-size: var(--step--1); }
 
 @media (prefers-reduced-motion: no-preference) {
-  .ladder .heat-row { transition: opacity 200ms ease; }
+  .ladder .heat-row { transition: opacity var(--dur-base) ease; }
 }
 
 /* Chart view */
@@ -269,9 +274,16 @@ a.btn.primary { color: var(--plate); }
 .badge { border: 1px solid var(--rule); border-radius: 999px; padding: 1px 8px; color: var(--paper-dim); font-weight: 600; white-space: nowrap; }
 .badge.warn { color: var(--seal); border-color: color-mix(in srgb, var(--seal) 50%, var(--rule)); }
 .live-dot { display: inline-flex; align-items: center; gap: 6px; color: var(--paper-dim); white-space: nowrap; }
-.live-dot::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--sage); }
+.live-dot::before { content: ''; width: 7px; height: 7px; border-radius: 50%; background: var(--sage); transition: background-color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out); }
 .live-dot.live::before { background: var(--ink); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ink) 25%, transparent); }
-.live-dot.offline::before, .live-dot.ended::before { background: var(--alert); }
+/* Reconnecting is amber and pulses (it should resolve); disconnected is red and still (it won't). */
+.live-dot.offline { color: var(--seal); }
+.live-dot.offline::before { background: var(--seal); }
+.live-dot.ended { color: var(--alert); }
+.live-dot.ended::before { background: var(--alert); }
+@media (prefers-reduced-motion: no-preference) {
+  .live-dot.connecting::before, .live-dot.offline::before { animation: pm-pulse 1.2s ease-in-out infinite; }
+}
 .avatars { display: inline-flex; }
 .avatar {
   width: 24px; height: 24px; border-radius: 50%; display: inline-grid; place-items: center;
@@ -368,3 +380,7 @@ a.btn.primary { color: var(--plate); }
     max-height: 78vh; overflow-y: auto; z-index: 40;
   }
 }
+
+/* Copy confirmation: the button turns ink-green while it says "Copied". */
+.copy-link .btn { transition: color var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out); }
+.copy-link .btn.copied { color: var(--ink); border-color: var(--ink); }

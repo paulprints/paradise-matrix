@@ -5,6 +5,10 @@ import type { RenderModel } from '../chart/model.ts';
 import { drawingColor, withAlpha } from '../chart/theme.ts';
 import { projectAnchor, unprojectPoint } from '../chart/anchor.ts';
 import { extendRay, hitTest, type Pt } from './geometry.ts';
+import { easeOut, MOTION } from '../lib/motion.ts';
+
+/** A refused edit's outline fades over this long: long enough to catch the eye as the drawing snaps back. */
+const FLASH_MS = MOTION.slow * 3;
 
 type Target = Parameters<IPrimitivePaneRenderer['draw']>[0];
 export const TEXT_FONT = '600 13px Archivo, system-ui, sans-serif';
@@ -14,6 +18,8 @@ export class DrawingsLayer implements ISeriesPrimitive<Time> {
   drawings: Drawing[] = [];
   draft: Drawing | null = null;
   selected: string | null = null;
+  private flashed: ReadonlySet<string> = new Set();
+  private flashAt = 0;
   private measureCtx: CanvasRenderingContext2D | null = null;
   private readonly renderer: IPrimitivePaneRenderer = { draw: (t) => this.draw(t) };
   private readonly views: readonly IPrimitivePaneView[] = [{ zOrder: () => 'top', renderer: () => this.renderer }];
@@ -36,6 +42,25 @@ export class DrawingsLayer implements ISeriesPrimitive<Time> {
     this.measureCtx.font = TEXT_FONT;
     return this.measureCtx.measureText(s).width;
   };
+
+  /** Outline these drawings briefly: the server refused an edit to them and they just moved back. */
+  flash(ids: readonly string[]) {
+    this.flashed = new Set(ids);
+    this.flashAt = performance.now();
+    this.invalidate();
+  }
+
+  /** Screen box around a drawing, for the flash outline. */
+  private box(d: Drawing, size: { width: number; height: number }): { x0: number; y0: number; x1: number; y1: number } | null {
+    if (d.kind === 'hline') { const y = this.project({ t: this.model.times[0] ?? 0, p: d.p })?.y; return y === undefined ? null : { x0: 0, x1: size.width, y0: y, y1: y }; }
+    if (d.kind === 'vline') { const x = this.project({ t: d.t, p: 0 })?.x; return x === undefined ? null : { x0: x, x1: x, y0: 0, y1: size.height }; }
+    const anchors = d.kind === 'brush' ? d.pts : d.kind === 'text' ? [d.a] : [d.a, d.b];
+    const pts = anchors.map(this.project).filter((p): p is Pt => !!p);
+    if (!pts.length) return null;
+    const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
+    const right = d.kind === 'text' ? pts[0]!.x + this.measure(d.text) : Math.max(...xs);
+    return { x0: Math.min(...xs), x1: right, y0: Math.min(...ys) - (d.kind === 'text' ? 13 : 0), y1: Math.max(...ys) + (d.kind === 'text' ? 5 : 0) };
+  }
 
   /** The main pane, excluding the price and time axes. */
   size(): { width: number; height: number } {
@@ -114,6 +139,17 @@ export class DrawingsLayer implements ISeriesPrimitive<Time> {
             ctx.beginPath(); ctx.arc(hp.x, hp.y, 4.5, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
           }
         }
+      }
+      const t = (performance.now() - this.flashAt) / FLASH_MS;
+      if (t < 1 && this.flashed.size) {
+        ctx.strokeStyle = withAlpha(P.alert, 1 - easeOut(t));
+        ctx.lineWidth = 2;
+        ctx.setLineDash([]);
+        for (const d of this.drawings) {
+          const b = this.flashed.has(d.id) ? this.box(d, mediaSize) : null;
+          if (b) { ctx.beginPath(); ctx.roundRect(b.x0 - 6, b.y0 - 6, b.x1 - b.x0 + 12, b.y1 - b.y0 + 12, 4); ctx.stroke(); }
+        }
+        requestAnimationFrame(() => this.invalidate());
       }
     });
   }
