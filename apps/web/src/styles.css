@@ -171,8 +171,20 @@ a.btn.primary { color: var(--plate); }
 /* Sign-in */
 .signin { min-height: 100%; display: grid; place-items: center; padding: 24px; }
 .signin form { width: min(360px, 100%); display: grid; gap: 14px; }
-.signin label { display: grid; gap: 6px; font-size: var(--step--1); color: var(--paper-dim); }
+.signin label, .signin-field { display: grid; gap: 6px; font-size: var(--step--1); color: var(--paper-dim); }
 .signin input { background: var(--plate-2); border: 1px solid var(--rule); border-radius: var(--radius-s); padding: 10px 12px; }
+.signin .pw { display: flex; gap: 6px; }
+.signin .pw input { flex: 1; min-width: 0; }
+.dot-mark circle { fill: var(--ink); }
+.dot-mark rect { fill: var(--seal); }
+@media (prefers-reduced-motion: no-preference) {
+  /* The brand mark settles once: dots grow from the centre outwards, then the bar draws across. */
+  .dot-mark circle, .dot-mark rect { transform-box: fill-box; transform-origin: center; }
+  .dot-mark circle { animation: pm-dot-settle 320ms cubic-bezier(0.34, 1.56, 0.64, 1) calc(var(--ring) * 70ms) both; }
+  .dot-mark rect { animation: pm-bar-draw 260ms ease-out 260ms both; }
+  @keyframes pm-dot-settle { from { opacity: 0; transform: scale(0.2); } }
+  @keyframes pm-bar-draw { from { transform: scaleX(0); } }
+}
 .signin .wordmark { font-size: var(--step-3); line-height: 1; margin-bottom: 6px; }
 .halftone-rule { height: 10px; background-image: radial-gradient(circle, var(--ink) 1.2px, transparent 1.4px); background-size: 8px 8px; opacity: 0.55; }
 

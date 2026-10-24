@@ -109,7 +109,7 @@ export function App() {
   }, [chart]);
 
   if (checking) return null;
-  if (!user) return <SignIn notice={notice} onSignedIn={(u) => { setNotice(null); setUser(u); }} />;
+  if (!user) return <SignIn notice={notice} sharing={!!route} onSignedIn={(u) => { setNotice(null); setUser(u); }} />;
   if (page === 'members' && user.isAdmin) return <Members me={user} onBack={() => setPage('matrix')} />;
   if (route && share.denied) {
     const d = share.denied;
