@@ -94,7 +94,8 @@ export function externalProvider(baseUrl: string, apiKey?: string, fetchImpl: Fe
       const out: RawBar[] = rows.map((c) => {
         let t = typeof c.time === 'string' ? Date.parse(c.time) / 1000 : Number(c.time);
         if (t > 1e12) t = Math.floor(t / 1000);
-        return { t, o: Number(c.open), h: Number(c.high), l: Number(c.low), c: Number(c.close), v: Number(c.volume ?? 0) };
+        // A blank (null) price must stay NaN, not become 0, so normalisation drops the row WITH a warning.
+        return { t, o: Number(c.open ?? NaN), h: Number(c.high ?? NaN), l: Number(c.low ?? NaN), c: Number(c.close ?? NaN), v: Number(c.volume ?? 0) };
       });
       if (!out.length) throw new ProviderError('external', `empty series for ${symbol} ${tf}`);
       return out;

@@ -48,6 +48,18 @@ describe('auth', () => {
     expect((await s.call('GET', '/api/auth/me', undefined, tok)).status).toBe(401);
   });
 
+  it('a password reset signs out every earlier session', async () => {
+    await s.store.create('boss', 'password-123');
+    const member = await s.store.create('member', 'password-456');
+    const adminTok = (await login('boss', 'password-123')).body.token;
+    const old = (await login('member', 'password-456')).body.token;
+    expect((await s.call('PATCH', `/api/admin/users/${member.id}`, { password: 'brand-new-pass' }, adminTok)).status).toBe(200);
+    expect((await s.call('GET', '/api/auth/me', undefined, old)).status).toBe(401);
+    const fresh = (await login('member', 'brand-new-pass')).body.token;
+    expect((await s.call('GET', '/api/auth/me', undefined, fresh)).status).toBe(200);
+    expect((await s.call('GET', '/api/auth/me', undefined, adminTok)).status).toBe(200); // others unaffected
+  });
+
   it('admin routes: create, list, promote, reset, delete — with guard rails', async () => {
     const boss = await s.store.create('boss', 'password-123');
     await s.store.create('member', 'password-456');

@@ -28,6 +28,15 @@ describe('externalProvider', () => {
   });
 });
 
+describe('externalProvider — blank prices', () => {
+  it('passes null prices on as NaN (not 0), so normalisation drops the row with a warning', async () => {
+    const f = vi.fn(() => json([{ time: 1, open: 1, high: 2, low: 1, close: 2 }, { time: 2, open: 1, high: 2, low: 1, close: null }]));
+    const rows = await externalProvider('http://data:8000', undefined, f as any).fetch('QQQ', 'D');
+    expect(rows[0]!.c).toBe(2);
+    expect(Number.isNaN(rows[1]!.c)).toBe(true);
+  });
+});
+
 describe('market cache', () => {
   it('caches within TTL, de-duplicates in-flight requests, refetches after TTL', async () => {
     let t = 1000;

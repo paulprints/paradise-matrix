@@ -44,6 +44,22 @@ describe('drawings', () => {
     expect((await s.call('GET', '/api/drawings?symbol=QQQ', undefined, tokA)).body.drawings).toEqual([]);
   });
 
+  it('refuses a save based on a stale copy (another tab saved since) and returns what is stored', async () => {
+    const first = await s.call('PUT', '/api/drawings', { symbol: 'QQQ', drawings: [sample[0]], baseUpdatedAt: null }, tokA);
+    expect(first.status).toBe(200);
+    expect((await s.call('PUT', '/api/drawings', { symbol: 'QQQ', drawings: [], baseUpdatedAt: null }, tokA)).status).toBe(409);
+    const base = first.body.updatedAt;
+    // Tab 1 saves on top of what both tabs loaded...
+    const tab1 = await s.call('PUT', '/api/drawings', { symbol: 'QQQ', drawings: [sample[0], sample[1]], baseUpdatedAt: base }, tokA);
+    expect(tab1.status).toBe(200);
+    expect(tab1.body.updatedAt).not.toBe(base);
+    // ...so tab 2, still on the old copy, can't wipe tab 1's line.
+    const tab2 = await s.call('PUT', '/api/drawings', { symbol: 'QQQ', drawings: [], baseUpdatedAt: base }, tokA);
+    expect(tab2.status).toBe(409);
+    expect(tab2.body.details).toEqual({ symbol: 'QQQ', drawings: [sample[0], sample[1]], updatedAt: tab1.body.updatedAt });
+    expect((await s.call('GET', '/api/drawings?symbol=QQQ', undefined, tokA)).body.drawings).toEqual([sample[0], sample[1]]);
+  });
+
   it('validates shape and limits', async () => {
     const bad = async (d: unknown) => (await s.call('PUT', '/api/drawings', { symbol: 'QQQ', drawings: [d] }, tokA)).status;
     expect(await bad({ ...sample[1], color: 'hotpink' })).toBe(400);

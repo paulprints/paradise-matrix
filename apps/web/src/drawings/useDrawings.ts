@@ -9,8 +9,8 @@
  * know which.
  */
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { Drawing, DrawingColor, DrawingKind } from '@paradise/contract';
-import { api } from '../api.ts';
+import type { Drawing, DrawingColor, DrawingKind, DrawingsResponse } from '@paradise/contract';
+import { api, ApiError } from '../api.ts';
 import type { ChartHandles } from '../chart/ChartView.tsx';
 import { hitTest, newId, simplify, translate, type Handle, type Pt } from './geometry.ts';
 import { DrawingsLayer } from './layer.ts';
@@ -26,26 +26,50 @@ export interface DrawingSource {
   load(signal: AbortSignal): Promise<Drawing[]>;
   /** Persist a local change (the full new list). */
   save(next: Drawing[], report: (s: SaveStatus) => void): void;
-  /** Changes made elsewhere (shared charts). */
+  /** Changes made elsewhere (shared charts; another tab's save for your own). */
   subscribe?(onChange: (drawings: Drawing[]) => void): () => void;
 }
 
 const SAVE_DEBOUNCE_MS = 600;
 
-/** Your own drawings for one instrument. */
+/**
+ * Your own drawings for one instrument. Each save carries the version it was
+ * based on; if another tab or device saved in between, the server refuses (409)
+ * and this tab takes the stored drawings instead of overwriting them.
+ */
 export function personalSource(symbol: string): DrawingSource {
   let timer: ReturnType<typeof setTimeout> | null = null;
+  let base: string | null = null;
+  let conflicts = 0;
+  let saving = Promise.resolve();
+  let onChange: ((d: Drawing[]) => void) | null = null;
   return {
     id: `me:${symbol}`,
     editable: true,
-    load: (signal) => api.drawings(symbol, signal).then((r) => r.drawings),
+    load: (signal) => api.drawings(symbol, signal).then((r) => { base = r.updatedAt; return r.drawings; }),
     save: (next, report) => {
       if (timer) clearTimeout(timer);
       timer = setTimeout(() => {
         report('saving');
-        api.saveDrawings(symbol, next).then(() => report('saved')).catch(() => report('error'));
+        const seen = conflicts;
+        // One save at a time, so each is based on the version the previous one stored.
+        saving = saving.then(() => {
+          if (seen !== conflicts) return report('error'); // edited before the reload: that list is stale
+          return api.saveDrawings(symbol, next, base)
+            .then((r) => { base = r.updatedAt; report('saved'); })
+            .catch((e) => {
+              if (e instanceof ApiError && e.status === 409 && e.details) {
+                const cur = e.details as DrawingsResponse;
+                conflicts++;
+                base = cur.updatedAt;
+                onChange?.(cur.drawings);
+              }
+              report('error');
+            });
+        });
       }, SAVE_DEBOUNCE_MS);
     },
+    subscribe: (fn) => { onChange = fn; return () => { onChange = null; }; },
   };
 }
 

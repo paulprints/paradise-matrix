@@ -51,7 +51,7 @@ export const api = {
   levels: (req: LevelsRequest, signal?: AbortSignal) => request<LevelsResponse>('POST', '/levels', req, signal),
   chart: (req: ChartRequest, signal?: AbortSignal) => request<ChartResponse>('POST', '/chart', req, signal),
   drawings: (symbol: string, signal?: AbortSignal) => request<DrawingsResponse>('GET', `/drawings?symbol=${encodeURIComponent(symbol)}`, undefined, signal),
-  saveDrawings: (symbol: string, drawings: Drawing[]) => request<DrawingsResponse>('PUT', '/drawings', { symbol, drawings }),
+  saveDrawings: (symbol: string, drawings: Drawing[], baseUpdatedAt: string | null) => request<DrawingsResponse>('PUT', '/drawings', { symbol, drawings, baseUpdatedAt }),
   createShare: (title: string, config: ShareConfig, drawings: Drawing[], linkAccess: LinkAccess) => request<{ share: ShareInfo }>('POST', '/shares', { title, config, drawings, linkAccess }).then((r) => r.share),
   myShares: (signal?: AbortSignal) => request<{ shares: ShareInfo[] }>('GET', '/shares', undefined, signal).then((r) => r.shares),
   openShare: (id: string, signal?: AbortSignal) => request<ShareOpenResponse>('GET', `/shares/${encodeURIComponent(id)}`, undefined, signal),

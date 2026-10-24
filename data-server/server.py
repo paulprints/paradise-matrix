@@ -71,9 +71,8 @@ def ohlc(
 
     rows: list[dict] = []
     for ts, r in df.iterrows():
-        o, h, l, c = (float(r[k]) for k in ("Open", "High", "Low", "Close"))
-        if any(math.isnan(x) for x in (o, h, l, c)):
-            continue
+        # Blank prices go out as null, not dropped: the Node API drops such rows WITH a warning.
+        o, h, l, c = (None if math.isnan(x) else x for x in (float(r[k]) for k in ("Open", "High", "Low", "Close")))
         v = r.get("Volume", 0)
         rows.append({
             "time": int(pd.Timestamp(ts).timestamp()),

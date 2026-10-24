@@ -37,7 +37,7 @@ const chartSchema = z.object({
   bars: z.number().int().min(50).max(5000).optional(),
   since: z.number().int().min(0).optional(),
 });
-const drawingsSchema = z.object({ symbol: z.string().trim().min(1).max(24), drawings: z.array(drawingSchema).max(DRAWING_LIMITS.perSymbol) });
+const drawingsSchema = z.object({ symbol: z.string().trim().min(1).max(24), drawings: z.array(drawingSchema).max(DRAWING_LIMITS.perSymbol), baseUpdatedAt: z.string().max(40).nullable().optional() });
 const loginSchema = z.object({ username: z.string().trim().min(1).max(50), password: z.string().min(1).max(200) });
 const newUserSchema = z.object({
   username: z.string().trim().toLowerCase().regex(/^[a-z0-9._-]{3,50}$/, '3–50 chars: letters, digits, . _ -'),
@@ -76,7 +76,7 @@ export function createApp({ config, store, market, shares, live = null, now }: A
     await store.recordLogin({ username: body.data.username.toLowerCase(), userId: user?.id, ip: clientIp(req), userAgent: req.headers['user-agent'] ?? null, ok: !!user, error: user ? null : 'invalid credentials' });
     if (!user) return res.status(401).json({ error: 'Invalid username or password' });
     const pub = { id: user.id, username: user.username, isAdmin: user.is_admin === 1 };
-    const out: LoginResponse = { token: signToken(pub, config.jwtSecret, config.jwtExpiresIn), user: pub };
+    const out: LoginResponse = { token: signToken(pub, user.password_hash, config.jwtSecret, config.jwtExpiresIn), user: pub };
     res.json(out);
   }));
 
@@ -105,7 +105,13 @@ export function createApp({ config, store, market, shares, live = null, now }: A
     const body = drawingsSchema.safeParse(req.body);
     if (!body.success) return res.status(400).json({ error: body.error.issues[0]?.message ?? 'Invalid drawings', details: body.error.flatten() });
     const symbol = resolveInstrument(body.data.symbol).symbol;
-    const updatedAt = await store.putDrawings(req.user!.id, symbol, JSON.stringify(body.data.drawings));
+    const updatedAt = await store.putDrawings(req.user!.id, symbol, JSON.stringify(body.data.drawings), body.data.baseUpdatedAt);
+    if (updatedAt === null) {
+      // Saved from another tab or device since this one loaded: hand back what's stored instead of overwriting it.
+      const row = await store.getDrawings(req.user!.id, symbol);
+      const current: DrawingsResponse = { symbol, drawings: row ? JSON.parse(row.data) : [], updatedAt: row?.updatedAt ?? null };
+      return res.status(409).json({ error: 'Your drawings were changed elsewhere; reloaded them', details: current });
+    }
     const out: DrawingsResponse = { symbol, drawings: body.data.drawings as DrawingsResponse['drawings'], updatedAt };
     res.json(out);
   }));
@@ -127,12 +133,18 @@ export function createApp({ config, store, market, shares, live = null, now }: A
     if (!body.success) return res.status(400).json({ error: body.error.issues[0]?.message ?? 'Invalid update' });
     if (body.data.isAdmin === false && id === req.user!.id) return res.status(400).json({ error: 'You cannot remove your own admin access' });
     const u = await store.update(id, body.data);
+    if (u && body.data.password !== undefined) live?.closeUser(id);
     return u ? res.json({ user: u }) : res.status(404).json({ error: 'No such user' });
   }));
   admin.delete('/users/:id', wrap(async (req, res) => {
     const id = Number(req.params.id);
     if (id === req.user!.id) return res.status(400).json({ error: 'You cannot delete your own account' });
-    return (await store.remove(id)) ? res.status(204).end() : res.status(404).json({ error: 'No such user' });
+    const owned = (await shares?.listByOwner(id)) ?? [];
+    if (!(await store.remove(id))) return res.status(404).json({ error: 'No such user' });
+    // Their shares went with them (cascade): close those rooms, and their own tabs.
+    for (const s of owned) live?.closeShare(s.id);
+    live?.closeUser(id);
+    res.status(204).end();
   }));
   admin.get('/login-history', wrap(async (req, res) => {
     const username = typeof req.query.username === 'string' ? req.query.username : undefined;
