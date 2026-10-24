@@ -19,12 +19,12 @@
 import type { IncomingMessage, Server } from 'node:http';
 import type { Duplex } from 'node:stream';
 import { randomBytes } from 'node:crypto';
-import jwt from 'jsonwebtoken';
 import { WebSocketServer, type WebSocket, type RawData } from 'ws';
 import { z } from 'zod';
 import { LIVE_CLOSE, LIVE_OPS_BUDGET, type LiveServerMessage, type Peer, type PresenterView } from '@paradise/contract';
 import type { Config } from '../config.ts';
 import type { UserStore } from '../auth/db.ts';
+import { tokenUser } from '../auth/tokens.ts';
 import { anchorSchema, liveOpSchema, presenterViewSchema } from '../schemas.ts';
 import type { SharesStore } from './store.ts';
 
@@ -180,11 +180,9 @@ export class LiveHub {
 
   private async auth(c: Conn, token: string, shareId: string) {
     if (c.peer) return this.send(c, { type: 'error', message: 'already signed in' });
-    let userId: number;
-    try { userId = Number((jwt.verify(token, this.deps.config.jwtSecret) as jwt.JwtPayload).sub); }
-    catch { return c.ws.close(LIVE_CLOSE.auth, 'session expired'); }
-    const user = await this.deps.store.byId(userId);
-    if (!user) return c.ws.close(LIVE_CLOSE.auth, 'account no longer exists');
+    const user = await tokenUser(this.deps.store, token, this.deps.config.jwtSecret);
+    if (!user) return c.ws.close(LIVE_CLOSE.auth, 'session expired');
+    const userId = user.id;
     const access = await this.deps.shares.join(shareId, userId);
     if (!access) return c.ws.close(LIVE_CLOSE.gone, 'shared chart not found');
     if (access.status !== 'ok' || !access.role) {
@@ -247,6 +245,11 @@ export class LiveHub {
   /** Signed-in users with a tab open on this share. */
   onlineUsers(shareId: string): Set<number> {
     return new Set([...(this.rooms.get(shareId)?.conns ?? [])].flatMap((c) => (c.peer ? [c.peer.userId] : [])));
+  }
+
+  /** The account was deleted or its password changed: sign out that person's open tabs. */
+  closeUser(userId: number) {
+    for (const c of this.conns) if (c.peer?.userId === userId) c.ws.close(LIVE_CLOSE.auth, 'signed out');
   }
 
   /** The share was deleted: close its room. */

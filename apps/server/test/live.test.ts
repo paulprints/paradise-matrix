@@ -200,6 +200,27 @@ describe('live rooms', () => {
     expect((await carol.closed).code).toBe(LIVE_CLOSE.gone);
   });
 
+  it('admin resets and deletes reach open tabs: that person is signed out, their shares close', async () => {
+    const owner = await join(tokA); await owner.next('welcome');
+    const bob = await join(tokB); await bob.next('welcome');
+    const carol = await join(tokC); await carol.next('welcome');
+
+    await s.call('PATCH', `/api/admin/users/${ids.carol}`, { password: 'carol-new-pass' }, tokA);
+    expect(await carol.closed).toEqual({ code: LIVE_CLOSE.auth, reason: 'signed out' });
+    const stale = await join(tokC); // the old token no longer signs in
+    expect((await stale.closed).code).toBe(LIVE_CLOSE.auth);
+
+    await s.call('DELETE', `/api/admin/users/${ids.bob}`, undefined, tokA);
+    expect(await bob.closed).toEqual({ code: LIVE_CLOSE.auth, reason: 'signed out' });
+  });
+
+  it('deleting a share owner’s account closes their rooms', async () => {
+    await s.store.update(ids.carol!, { isAdmin: true });
+    const bob = await join(tokB); await bob.next('welcome');
+    expect((await s.call('DELETE', `/api/admin/users/${ids.alice}`, undefined, tokC)).status).toBe(204);
+    expect((await bob.closed).code).toBe(LIVE_CLOSE.gone);
+  });
+
   it('keeps the owner’s people list live: requests, joins, who’s online', async () => {
     await s.call('PATCH', `/api/shares/${share.id}`, { linkAccess: 'approval' }, tokA);
     const owner = await join(tokA); await owner.next('welcome');

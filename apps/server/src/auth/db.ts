@@ -121,12 +121,20 @@ export class UserStore {
     return r ? { data: r.data, updatedAt: r.updated_at } : null;
   }
 
-  async putDrawings(userId: number, symbol: string, data: string): Promise<string> {
-    await this.db.run(
-      `INSERT INTO drawings (user_id, symbol, data, updated_at) VALUES (?, ?, ?, CURRENT_TIMESTAMP)
-       ON CONFLICT(user_id, symbol) DO UPDATE SET data = excluded.data, updated_at = CURRENT_TIMESTAMP`,
-      userId, symbol, data,
-    );
+  /**
+   * Save the whole set. With `base` (the updatedAt the caller loaded; null = nothing saved yet)
+   * it only writes if nothing changed since, and returns null otherwise. Without it, it always writes.
+   */
+  async putDrawings(userId: number, symbol: string, data: string, base?: string | null): Promise<string | null> {
+    // Millisecond stamps, so two saves within one second still differ.
+    const NOW = `strftime('%Y-%m-%d %H:%M:%f', 'now')`;
+    const r = base === undefined
+      ? await this.db.run(`INSERT INTO drawings (user_id, symbol, data, updated_at) VALUES (?, ?, ?, ${NOW})
+          ON CONFLICT(user_id, symbol) DO UPDATE SET data = excluded.data, updated_at = ${NOW}`, userId, symbol, data)
+      : base === null
+        ? await this.db.run(`INSERT INTO drawings (user_id, symbol, data, updated_at) VALUES (?, ?, ?, ${NOW}) ON CONFLICT(user_id, symbol) DO NOTHING`, userId, symbol, data)
+        : await this.db.run(`UPDATE drawings SET data = ?, updated_at = ${NOW} WHERE user_id = ? AND symbol = ? AND updated_at = ?`, data, userId, symbol, base);
+    if (!r.changes) return null;
     return (await this.getDrawings(userId, symbol))!.updatedAt;
   }
 

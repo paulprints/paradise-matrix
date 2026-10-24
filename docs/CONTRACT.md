@@ -12,7 +12,7 @@ All routes except `/health` and `/api/auth/login` require `Authorization: Bearer
 | POST | `/api/levels` | `LevelsRequest` | `LevelsResponse` (ladder: current levels) |
 | POST | `/api/chart` | `ChartRequest` | `ChartResponse` (candles + level history) |
 | GET | `/api/drawings` | `?symbol` | `DrawingsResponse` (yours, for that instrument) |
-| PUT | `/api/drawings` | `{symbol, drawings}` | `DrawingsResponse` (replaces the set) |
+| PUT | `/api/drawings` | `{symbol, drawings, baseUpdatedAt?}` | `DrawingsResponse` (replaces the set). With `baseUpdatedAt` (the `updatedAt` you loaded; `null` if none), 409 `{error, details: DrawingsResponse}` if it was saved elsewhere since |
 | POST | `/api/shares` | `{title, config: ShareConfig, drawings, linkAccess?}` | 201 `{share}` (200 per owner) |
 | GET | `/api/shares` | | `{shares}` (yours) |
 | GET | `/api/shares/:id` | | `ShareOpenResponse` `{share, role, drawings}`. First visit adds you to the people list. 403 `{error, details: ShareDenied}` while waiting or if removed; 404 if no such share |
