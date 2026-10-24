@@ -3,6 +3,7 @@ import { CandlestickSeries, createChart, CrosshairMode, type IChartApi, type ISe
 import type { LevelGroup } from '@paradise/contract';
 import { contribution, zoneOf, type HeatRow, type HeatStyle } from '../lib/heat.ts';
 import { decimalsForTick, formatBarTime, formatPrice, formatTick } from '../lib/format.ts';
+import { reducedMotion } from '../lib/motion.ts';
 import { HeatLayer } from './heatLayer.ts';
 import { LevelsLayer } from './levelsLayer.ts';
 import { RenderModel } from './model.ts';
@@ -174,7 +175,7 @@ export function ChartView({ state, groups, heat, heatStyle, theme, onInspect, on
     m.heat = heat;
     m.heatStyle = heatStyle;
     const finest = state.frames[state.frames.length - 1];
-    m.setSegments(state.segments.filter((s) => groups.includes(s.key.group)), finest?.atr ?? null);
+    m.setSegments(state.segments.filter((s) => groups.includes(s.key.group)), finest?.atr ?? null, !!sameSeries && !reducedMotion());
     c.heat.invalidate();
     c.levels.invalidate();
   }, [state, groups, heat, heatStyle]);

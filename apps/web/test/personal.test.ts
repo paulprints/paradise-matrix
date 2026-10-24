@@ -26,7 +26,7 @@ describe('personal drawings: saving from a stale tab', () => {
     await vi.advanceTimersByTimeAsync(1000);
     expect(sent).toEqual([{ symbol: 'QQQ', drawings: [], baseUpdatedAt: 'v1' }]);
     expect(shown).toEqual([[line('a'), line('other-tab')]]);
-    expect(status).toEqual(['saving', 'error']);
+    expect(status).toEqual(['saving', 'conflict']);
 
     // The next edit is based on the reloaded copy.
     src.save([line('a')], () => {});

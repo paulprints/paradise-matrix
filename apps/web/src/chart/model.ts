@@ -5,7 +5,7 @@
 import type { Timeframe } from '@paradise/contract';
 import { bandwidthFor, referenceScore, type HeatStyle } from '../lib/heat.ts';
 import type { Interval, Segment } from './state.ts';
-import { buildTimeline } from './state.ts';
+import { buildTimeline, justConfirmed } from './state.ts';
 import type { Palette } from './theme.ts';
 
 export class RenderModel {
@@ -22,8 +22,14 @@ export class RenderModel {
   palette!: Palette;
   /** Bumped whenever data changes; layers key their caches on it. */
   version = 0;
+  /** Segments that just went from developing to confirmed, and when (for the settle animation). */
+  settled: ReadonlySet<string> = new Set();
+  settledAt = 0;
 
-  setSegments(segments: Segment[], finestAtr: number | null) {
+  /** `settle`: this is a live update of the same series, so a confirmation may animate. */
+  setSegments(segments: Segment[], finestAtr: number | null, settle = false) {
+    const confirmed = settle ? justConfirmed(this.segments, segments) : new Set<string>();
+    if (confirmed.size) { this.settled = confirmed; this.settledAt = performance.now(); }
     this.segments = segments;
     this.timeline = buildTimeline(segments);
     const prices = segments.map((s) => s.price);

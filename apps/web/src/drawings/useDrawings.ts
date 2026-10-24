@@ -17,7 +17,7 @@ import { DrawingsLayer } from './layer.ts';
 
 export type Tool = 'cursor' | DrawingKind;
 export interface TextPrompt { x: number; y: number; anchor: { t: number; p: number } }
-export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error';
+export type SaveStatus = 'idle' | 'saving' | 'saved' | 'error' | 'conflict';
 
 export interface DrawingSource {
   /** Identity: the drawings reload when it changes. */
@@ -26,8 +26,8 @@ export interface DrawingSource {
   load(signal: AbortSignal): Promise<Drawing[]>;
   /** Persist a local change (the full new list). */
   save(next: Drawing[], report: (s: SaveStatus) => void): void;
-  /** Changes made elsewhere (shared charts; another tab's save for your own). */
-  subscribe?(onChange: (drawings: Drawing[]) => void): () => void;
+  /** Changes made elsewhere (shared charts; another tab's save for your own). `refused`: ids the server just put back. */
+  subscribe?(onChange: (drawings: Drawing[], refused?: string[]) => void): () => void;
 }
 
 const SAVE_DEBOUNCE_MS = 600;
@@ -54,7 +54,7 @@ export function personalSource(symbol: string): DrawingSource {
         const seen = conflicts;
         // One save at a time, so each is based on the version the previous one stored.
         saving = saving.then(() => {
-          if (seen !== conflicts) return report('error'); // edited before the reload: that list is stale
+          if (seen !== conflicts) return report('conflict'); // edited before the reload: that list is stale
           return api.saveDrawings(symbol, next, base)
             .then((r) => { base = r.updatedAt; report('saved'); })
             .catch((e) => {
@@ -63,6 +63,7 @@ export function personalSource(symbol: string): DrawingSource {
                 conflicts++;
                 base = cur.updatedAt;
                 onChange?.(cur.drawings);
+                return report('conflict');
               }
               report('error');
             });
@@ -110,7 +111,8 @@ export function useDrawings(source: DrawingSource | null, handles: ChartHandles 
     source.load(ctrl.signal)
       .then((d) => { if (!ctrl.signal.aborted) { live.current.drawings = d; setDrawingsState(d); sync(d, null); setStatus('idle'); } })
       .catch((e) => { if ((e as Error).name !== 'AbortError') setStatus('error'); });
-    const unsubscribe = source.subscribe?.((d) => {
+    const unsubscribe = source.subscribe?.((d, refused) => {
+      if (refused?.length) layer.current?.flash(refused);
       live.current.drawings = d;
       setDrawingsState(d);
       const sel = live.current.selected && d.some((x) => x.id === live.current.selected) ? live.current.selected : null;

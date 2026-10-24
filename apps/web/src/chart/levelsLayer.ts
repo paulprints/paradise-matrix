@@ -14,6 +14,7 @@ import type { Segment } from './state.ts';
 import { timeToLogical } from './time.ts';
 import { logicalToX, type LogicalScale } from './coords.ts';
 import { withAlpha } from './theme.ts';
+import { easeOut, MOTION } from '../lib/motion.ts';
 
 const TF_WIDTH: Record<string, number> = { M: 2.5, W: 2, D: 1.5 };
 const TF_RANK: Record<string, number> = { M: 0, W: 1, D: 2, '1H': 3, '30m': 4, '15m': 5, '5m': 6, '1m': 7 };
@@ -54,8 +55,13 @@ export class LevelsLayer implements ISeriesPrimitive<Time> {
     const m = this.model;
     if (!this.p || !m.times.length) return;
     const { series } = this.p;
+    // Settle: a level that just became final fades from developing (dashed) to its confirmed style, once.
+    const progress = (performance.now() - m.settledAt) / MOTION.slow;
+    const settling = progress < 1 ? m.settled : null;
+    if (settling) requestAnimationFrame(() => this.invalidate());
     target.useBitmapCoordinateSpace(({ context: ctx, mediaSize, horizontalPixelRatio: hr, verticalPixelRatio: vr }) => {
       const batches = new Map<string, Path2D>();
+      const settle: Array<{ s: Segment; path: Path2D; w: number }> = [];
       for (const s of m.segments) {
         const xa = this.x(s.from), xb = this.x(s.to);
         if (xa === null || xb === null || xb < 0 || xa > mediaSize.width) continue;
@@ -63,8 +69,9 @@ export class LevelsLayer implements ISeriesPrimitive<Time> {
         if (y === null || y < -2 || y > mediaSize.height + 2) continue;
         const w = Math.max(1, Math.round((TF_WIDTH[s.tf] ?? 1) * vr));
         const key = `${styleOf(s)}|${w}`;
-        let path = batches.get(key);
-        if (!path) batches.set(key, (path = new Path2D()));
+        const settles = !!settling?.has(s.id);
+        const path = settles ? new Path2D() : batches.get(key) ?? new Path2D();
+        if (settles) settle.push({ s, path, w }); else batches.set(key, path);
         const yb = Math.round(y * vr) + (w % 2 ? 0.5 : 0);
         path.moveTo(Math.round(xa * hr), yb);
         path.lineTo(Math.round(xb * hr), yb);
@@ -81,6 +88,19 @@ export class LevelsLayer implements ISeriesPrimitive<Time> {
         ctx.setLineDash(style === 'dev' ? [4 * hr, 3 * hr] : style === 'profile' ? [1 * hr, 3 * hr] : []);
         ctx.stroke(path);
       }
+      const e = easeOut(progress);
+      for (const { s, path, w } of settle) {
+        ctx.lineWidth = w;
+        ctx.globalAlpha = 1 - e;
+        ctx.strokeStyle = color.dev;
+        ctx.setLineDash([4 * hr, 3 * hr]);
+        ctx.stroke(path);
+        ctx.globalAlpha = e;
+        ctx.strokeStyle = color[styleOf(s)];
+        ctx.setLineDash(styleOf(s) === 'profile' ? [1 * hr, 3 * hr] : []);
+        ctx.stroke(path);
+      }
+      ctx.globalAlpha = 1;
       ctx.setLineDash([]);
     });
   }

@@ -52,6 +52,16 @@ export function applyChart(prev: ChartState | null, res: ChartResponse): ChartSt
   return { ...base, bars, segments };
 }
 
+/**
+ * Ids of confirmed segments in `next` that replace a developing segment in `prev`
+ * (same timeframe, level and window): the moment a forming bar's level becomes final.
+ */
+export function justConfirmed(prev: readonly Segment[], next: readonly Segment[]): Set<string> {
+  const developing = new Set(prev.filter((s) => s.developing).map((s) => s.id));
+  // Ids are `${tf}:${basis}:${key}:${from}`; tf has no colon, so the first ':0:' is the basis.
+  return new Set(next.filter((s) => !s.developing && developing.has(s.id.replace(':0:', ':1:'))).map((s) => s.id));
+}
+
 const sortSegments = (s: Segment[]) => s.sort((a, b) => a.from - b.from || a.to - b.to);
 
 export interface Interval {
