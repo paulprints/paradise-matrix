@@ -9,3 +9,4 @@ apps/server/data/
 coverage/
 .DS_Store
 __pycache__/
+graphify-out/
