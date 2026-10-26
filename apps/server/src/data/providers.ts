@@ -9,6 +9,8 @@
  */
 import type { Timeframe } from '@paradise/contract';
 import type { RawBar } from './bars.ts';
+import { INTRADAY_SECONDS, XNYS } from './calendar.ts';
+import { localParts, localYmd } from './time.ts';
 
 export interface Provider {
   readonly id: string;
@@ -101,6 +103,75 @@ export function externalProvider(baseUrl: string, apiKey?: string, fetchImpl: Fe
       return out;
     },
   };
+}
+
+/** Massive history per timeframe, in days back from today (matches the Yahoo ranges above). M: from Massive's first record. */
+const MASSIVE_PARAMS: Record<Timeframe, { span: string; days: number }> = {
+  '1m': { span: '1/minute', days: 7 },
+  '5m': { span: '5/minute', days: 60 },
+  '15m': { span: '15/minute', days: 60 },
+  '30m': { span: '30/minute', days: 60 },
+  '1H': { span: '30/minute', days: 730 }, // Massive hours start on the clock (9:00); ours start at the 9:30 open, so pair up 30m bars
+  D: { span: '1/day', days: 5 * 365 },
+  W: { span: '1/week', days: 10 * 365 },
+  M: { span: '1/month', days: 9000 },
+};
+const MASSIVE_MAX_PAGES = 40;
+
+/**
+ * Massive (formerly Polygon) stock and ETF bars, split-adjusted only (`adjusted=true`).
+ * Plain US tickers only: indices (^SPX) and futures (ES=F, NQZ26.CME) are refused, so the
+ * market falls through to the next provider (Yahoo) for them.
+ * Intraday rows outside the regular session are dropped here, as Yahoo's includePrePost=false does.
+ */
+export function massiveProvider(apiKey: string, fetchImpl: FetchLike = fetch, base = 'https://api.massive.com', clock: () => number = () => Date.now() / 1000): Provider {
+  return {
+    id: 'massive',
+    async fetch(symbol, tf, signal) {
+      if (!/^[A-Z][A-Z0-9-]{0,9}$/.test(symbol)) throw new ProviderError('massive', `stocks and ETFs only, not ${symbol}`);
+      const p = MASSIVE_PARAMS[tf];
+      const now = clock();
+      const from = localYmd(now - p.days * 86_400, 'America/New_York'), to = localYmd(now + 86_400, 'America/New_York');
+      let url: string | null = `${base}/v2/aggs/ticker/${encodeURIComponent(symbol.replace(/-/g, '.'))}/range/${p.span}/${from}/${to}?adjusted=true&sort=asc&limit=50000`;
+      const rows: any[] = [];
+      for (let page = 0; url; page++) {
+        if (page === MASSIVE_MAX_PAGES) throw new ProviderError('massive', `more than ${MASSIVE_MAX_PAGES} pages for ${symbol} ${tf}`);
+        const res = await fetchImpl(url, { headers: { Authorization: `Bearer ${apiKey}` }, signal: signal ?? AbortSignal.timeout(20_000) });
+        const json: any = await res.json().catch(() => ({}));
+        if (!res.ok || json.status === 'ERROR' || json.status === 'NOT_AUTHORIZED') {
+          throw new ProviderError('massive', `${json.error ?? json.message ?? `HTTP ${res.status}`} for ${symbol} ${tf}`);
+        }
+        rows.push(...(json.results ?? []));
+        url = json.next_url ?? null;
+      }
+      let out: RawBar[] = rows.map((r) => ({
+        // Massive's week bars start on Sunday 00:00 ET; the trading week (and our week key) starts Monday.
+        t: Math.floor(r.t / 1000) + (tf === 'W' ? 86_400 : 0),
+        o: Number(r.o ?? NaN), h: Number(r.h ?? NaN), l: Number(r.l ?? NaN), c: Number(r.c ?? NaN), v: Number(r.v ?? 0),
+      }));
+      if (INTRADAY_SECONDS[tf]) out = out.filter((b) => inRegularSession(b.t));
+      if (tf === '1H') out = pairHalfHours(out);
+      if (!out.some((b) => Number.isFinite(b.c))) throw new ProviderError('massive', `empty series for ${symbol} ${tf}`);
+      return out;
+    },
+  };
+}
+
+function inRegularSession(t: number): boolean {
+  const ymd = XNYS.sessionDateOf(t);
+  return XNYS.isTradingDay(ymd) && t >= XNYS.sessionOpen(ymd) && t < XNYS.sessionClose(ymd);
+}
+
+/** Regular-session 30m bars → hours starting at :30 (9:30, 10:30, … 15:30), the same grid as Yahoo's 60m bars. */
+export function pairHalfHours(bars: readonly RawBar[]): RawBar[] {
+  const out: RawBar[] = [];
+  for (const b of bars) {
+    const prev = out[out.length - 1];
+    if (prev && b.t - prev.t === 1800 && localParts(b.t, 'America/New_York').mi === 0) {
+      out[out.length - 1] = { t: prev.t, o: prev.o, h: Math.max(prev.h, b.h), l: Math.min(prev.l, b.l), c: b.c, v: prev.v + b.v };
+    } else out.push({ ...b });
+  }
+  return out;
 }
 
 /** Replays recorded rows; used by tests and offline demos. */

@@ -7,9 +7,10 @@ export interface Config {
   jwtExpiresIn: string;
   databasePath: string;
   allowedOrigins: string[];
-  providers: Array<'external' | 'yahoo'>;
+  providers: Array<'massive' | 'external' | 'yahoo'>;
   externalDataUrl: string | null;
   externalApiKey: string | null;
+  massiveApiKey: string | null;
   trustProxy: number;
 }
 
@@ -25,11 +26,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     jwtSecret = randomBytes(48).toString('base64url');
     if (nodeEnv !== 'test') console.warn('[config] JWT_SECRET not set — using an ephemeral secret (sessions reset on restart)');
   }
-  const providers = (env.DATA_PROVIDERS ?? 'external,yahoo').split(',').map((s) => s.trim()).filter(Boolean);
-  for (const p of providers) if (p !== 'external' && p !== 'yahoo') throw new ConfigError(`unknown data provider "${p}"`);
+  // Massive serves stocks/ETFs; it refuses indices and futures, which fall through to the next provider.
+  const providers = (env.DATA_PROVIDERS ?? 'massive,external,yahoo').split(',').map((s) => s.trim()).filter(Boolean);
+  for (const p of providers) if (p !== 'massive' && p !== 'external' && p !== 'yahoo') throw new ConfigError(`unknown data provider "${p}"`);
   const externalDataUrl = env.EXTERNAL_DATA_URL?.trim() || null;
-  const usable = providers.filter((p) => p !== 'external' || externalDataUrl) as Config['providers'];
-  if (!usable.length) throw new ConfigError('no usable data provider (set EXTERNAL_DATA_URL or include yahoo)');
+  const massiveApiKey = env.MASSIVE_API_KEY?.trim() || null;
+  const usable = providers.filter((p) => (p !== 'external' || externalDataUrl) && (p !== 'massive' || massiveApiKey)) as Config['providers'];
+  if (!usable.length) throw new ConfigError('no usable data provider (set MASSIVE_API_KEY or EXTERNAL_DATA_URL, or include yahoo)');
   return {
     port: Number(env.PORT ?? 3001),
     nodeEnv,
@@ -40,6 +43,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     providers: usable,
     externalDataUrl,
     externalApiKey: env.EXTERNAL_API_KEY?.trim() || null,
+    massiveApiKey,
     trustProxy: Number(env.TRUST_PROXY ?? 1),
   };
 }

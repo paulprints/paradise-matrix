@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest';
-import { externalProvider, yahooProvider } from '../src/data/providers.ts';
+import { externalProvider, massiveProvider, yahooProvider } from '../src/data/providers.ts';
 import { createMarket } from '../src/data/market.ts';
 
 const json = (body: unknown, status = 200) => Promise.resolve(new Response(JSON.stringify(body), { status }));
@@ -79,5 +79,63 @@ describe('yahooProvider — incomplete latest bar (observed 2026-10-16)', () => 
     const rows = await yahooProvider((() => json(body(meta, 709.79))) as any).fetch('QQQ', 'D');
     expect(rows[1]!.c).toBe(709.79);
     expect(rows[1]!.note).toBeUndefined();
+  });
+});
+
+describe('massiveProvider', () => {
+  const ms = (iso: string) => Date.parse(iso);
+  const bar = (iso: string, o: number, h: number, l: number, c: number, v = 1) => ({ t: ms(iso), o, h, l, c, v });
+  const now = () => ms('2026-10-26T20:00:00Z') / 1000;
+
+  it('refuses indices and futures without a request, so the market falls through to Yahoo', async () => {
+    const f = vi.fn();
+    const p = massiveProvider('k', f as any, 'https://m', now);
+    for (const s of ['^SPX', 'ES=F', 'NQZ26.CME']) await expect(p.fetch(s, 'D')).rejects.toThrow(/stocks and ETFs only/);
+    expect(f).not.toHaveBeenCalled();
+    const yahoo = { id: 'yahoo', fetch: vi.fn(async () => [{ t: 1, o: 1, h: 1, l: 1, c: 1, v: 0 }]) };
+    expect((await createMarket([p, yahoo]).fetchSet('ES=F', ['D'])).provider).toBe('yahoo');
+  });
+
+  it('sends the key as a bearer header, maps class shares, follows next_url and converts ms to s', async () => {
+    const f = vi.fn()
+      .mockReturnValueOnce(json({ status: 'OK', results: [bar('2026-10-22T04:00:00Z', 713.61, 715.43, 701.9, 704.47)], next_url: 'https://m/next?cursor=x' }))
+      .mockReturnValueOnce(json({ status: 'OK', results: [bar('2026-10-23T04:00:00Z', 702.2, 709.3, 701.16, 704.4)] }));
+    const rows = await massiveProvider('k', f as any, 'https://m', now).fetch('BRK-B', 'D');
+    expect(rows.map((r) => [r.t, r.c])).toEqual([[ms('2026-10-22T04:00:00Z') / 1000, 704.47], [ms('2026-10-23T04:00:00Z') / 1000, 704.4]]);
+    const [url, init] = f.mock.calls[0] as any;
+    expect(url).toBe('https://m/v2/aggs/ticker/BRK.B/range/1/day/2021-10-27/2026-10-27?adjusted=true&sort=asc&limit=50000');
+    expect(init.headers.Authorization).toBe('Bearer k');
+    expect((f.mock.calls[1] as any)[0]).toBe('https://m/next?cursor=x');
+  });
+
+  it('drops pre- and after-market bars and builds 1H bars on the 9:30 grid', async () => {
+    const f = vi.fn(() => json({ status: 'OK', results: [
+      bar('2026-10-23T13:00:00Z', 1, 9, 1, 1), // 9:00 ET pre-market
+      bar('2026-10-23T13:30:00Z', 10, 12, 9, 11, 5), // 9:30
+      bar('2026-10-23T14:00:00Z', 11, 13, 10, 12, 7), // 10:00
+      bar('2026-10-23T14:30:00Z', 12, 12, 8, 9, 2), // 10:30
+      bar('2026-10-23T19:30:00Z', 20, 21, 19, 20, 1), // 15:30
+      bar('2026-10-23T20:00:00Z', 50, 99, 1, 50), // 16:00 after-hours
+    ] }));
+    const p = massiveProvider('k', f as any, 'https://m', now);
+    expect((await p.fetch('QQQ', '30m')).map((r) => r.t)).toEqual(
+      ['13:30', '14:00', '14:30', '19:30'].map((hm) => ms(`2026-10-23T${hm}:00Z`) / 1000));
+    expect(await p.fetch('QQQ', '1H')).toEqual([
+      { t: ms('2026-10-23T13:30:00Z') / 1000, o: 10, h: 13, l: 9, c: 12, v: 12 },
+      { t: ms('2026-10-23T14:30:00Z') / 1000, o: 12, h: 12, l: 8, c: 9, v: 2 },
+      { t: ms('2026-10-23T19:30:00Z') / 1000, o: 20, h: 21, l: 19, c: 20, v: 1 },
+    ]);
+  });
+
+  it("moves week bars from Massive's Sunday start to Monday", async () => {
+    const f = vi.fn(() => json({ status: 'OK', results: [bar('2026-10-18T04:00:00Z', 1, 2, 1, 2)] }));
+    expect((await massiveProvider('k', f as any, 'https://m', now).fetch('QQQ', 'W'))[0]!.t).toBe(ms('2026-10-19T04:00:00Z') / 1000);
+  });
+
+  it('surfaces plan and HTTP errors', async () => {
+    const p = (body: unknown, status = 200) => massiveProvider('k', (() => json(body, status)) as any, 'https://m', now);
+    await expect(p({ status: 'NOT_AUTHORIZED', message: 'You are not entitled to this data.' }).fetch('QQQ', 'D')).rejects.toThrow(/not entitled/);
+    await expect(p({}, 429).fetch('QQQ', 'D')).rejects.toThrow(/HTTP 429/);
+    await expect(p({ status: 'OK', results: [] }).fetch('QQQ', 'D')).rejects.toThrow(/empty series/);
   });
 });
