@@ -5,9 +5,10 @@
  *   score(p) = Σ w(tf) · k(|p − price| / h)       k(u) = (1 − u²)² for |u| < 1
  *
  * h scales with the finest frame's average true range, so it follows the
- * instrument and timeframe, never the tick size. Intensity is score / the period's
- * peak score: the most heavily weighted area is Terminal and every other area is
- * shaded by how close it comes to it (7 against a peak of 10 → 70%).
+ * instrument and timeframe, never the tick size. Intensity is score / REF where
+ * REF = three coincident levels of the heaviest timeframe in view. It depends
+ * only on which frames are shown — never on the data — so a quiet ladder looks
+ * quiet: "Terminal" must be earned, it is not guaranteed by normalising to max.
  */
 import type { Level, Timeframe } from '@paradise/contract';
 
@@ -40,11 +41,13 @@ export const viridisCss = (t: number, alpha = 1) => { const [r, g, b] = viridis(
 /** CSS gradient of the scale, for legends. */
 export const VIRIDIS_GRADIENT = `linear-gradient(90deg, ${VIRIDIS.map(([p, r, g, b]) => `rgb(${r}, ${g}, ${b}) ${p * 100}%`).join(', ')})`;
 export const TF_WEIGHT: Record<Timeframe, number> = { M: 3, W: 2, D: 1, '1H': 0.75, '30m': 0.6, '15m': 0.5, '5m': 0.4, '1m': 0.3 };
+/** Coincident levels of the heaviest frame in view that saturate the scale. */
+export const REFERENCE_COUNT = 3;
 export const KERNEL_ATR_FRACTION = 0.3;
 
 export type Zone = 'terminal' | 'friction' | 'transit' | 'void';
 export const ZONES: Record<Zone, { label: string; min: number; meaning: string }> = {
-  terminal: { label: 'Terminal', min: 0.85, meaning: 'Heaviest confluence in this period: the strongest weighted level or overlap.' },
+  terminal: { label: 'Terminal', min: 0.85, meaning: 'Heaviest confluence: several weighted levels overlap here.' },
   friction: { label: 'Friction', min: 0.65, meaning: 'Strong overlap of levels.' },
   transit: { label: 'Transit', min: 0.45, meaning: 'Some overlap.' },
   void: { label: 'Void', min: 0, meaning: 'Little confluence: levels here stand mostly alone.' },
@@ -82,7 +85,7 @@ export function computeHeat({ levels, min, max, rows = 200, bandwidth }: HeatInp
   if (!(max > min) || !(bandwidth > 0) || rows < 2) return [];
   const priced = levels.filter((l): l is Level & { price: number } => l.state === 'active' && l.price !== null);
   const step = (max - min) / (rows - 1);
-  const reference = peakScore(priced.map((l) => ({ tf: l.tf, developing: l.basis === 'developing', price: l.price })), bandwidth);
+  const reference = referenceScore(priced);
   const out: HeatRow[] = [];
   for (let i = rows - 1; i >= 0; i--) {
     const price = min + i * step;
@@ -101,18 +104,10 @@ export function computeHeat({ levels, min, max, rows = 200, bandwidth }: HeatInp
   return out;
 }
 
-/**
- * Score at the strongest level: the heat scale, so the most weighted area is Terminal.
- * A sum can peak slightly between two close levels, so this is a lower bound and that row clamps to 1.
- */
-export function peakScore(levels: ReadonlyArray<{ tf: Timeframe; developing: boolean; price: number }>, bandwidth: number): number {
-  let peak = 0;
-  for (const a of levels) {
-    let s = 0;
-    for (const b of levels) s += contribution(b.tf, b.developing, b.price, a.price, bandwidth);
-    peak = Math.max(peak, s);
-  }
-  return peak;
+export function referenceScore(levels: readonly Pick<Level, 'tf'>[]): number {
+  let heaviest = 0;
+  for (const l of levels) heaviest = Math.max(heaviest, TF_WEIGHT[l.tf]);
+  return REFERENCE_COUNT * heaviest;
 }
 
 export function bandwidthFor(atr: number | null | undefined, span: number): number {
