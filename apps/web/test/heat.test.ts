@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Level } from '@paradise/contract';
-import { bandwidthFor, computeHeat, peakScore, zoneOf } from '../src/lib/heat.ts';
+import { bandwidthFor, computeHeat, referenceScore, zoneOf } from '../src/lib/heat.ts';
 
 const lvl = (id: string, price: number | null, tf: Level['tf'] = 'D', extra: Partial<Level> = {}): Level => ({
   id, slug: id, label: id, group: 'structure', family: 'x', tf, state: price === null ? 'inactive' : 'active', price, basis: 'confirmed',
@@ -20,29 +20,19 @@ describe('computeHeat', () => {
     const rows = computeHeat({ levels: [lvl('m', 100, 'M'), lvl('d', 100, 'D', { basis: 'developing' })], min: 99, max: 101, rows: 3, bandwidth: 1 });
     expect(rows[1]!.score).toBeCloseTo(3 + 0.5);
   });
-  it('the most weighted area is terminal; others are shaded relative to it', () => {
-    // 10 at 100 (M 3 + M 3 + W 2 + D 1 + D 1), 7 at 90 (M 3 + W 2 + D 1 + D 1)
-    const levels = [lvl('m1', 100, 'M'), lvl('m2', 100, 'M'), lvl('w1', 100, 'W'), lvl('d1', 100), lvl('d2', 100),
-      lvl('m3', 90, 'M'), lvl('w2', 90, 'W'), lvl('d3', 90), lvl('d4', 90)];
-    const rows = computeHeat({ levels, min: 89, max: 101, rows: 13, bandwidth: 1 });
-    const at = (p: number) => rows.find((r) => Math.abs(r.price - p) < 1e-9)!;
-    expect(at(100).score).toBeCloseTo(10);
-    expect(at(100).zone).toBe('terminal');
-    expect(at(90).intensity).toBeCloseTo(0.7);
-    expect(at(90).zone).toBe('friction');
-    expect(at(95).intensity).toBe(0);
+  it('uses a fixed scale: a lone daily level is never "terminal"', () => {
+    const rows = computeHeat({ levels: [lvl('a', 100)], min: 99, max: 101, rows: 3, bandwidth: 1 });
+    expect(rows[1]!.intensity).toBeCloseTo(1 / 3);
+    expect(rows[1]!.zone).toBe('void');
   });
-  it('a lone level is its own peak, and weights still rank levels', () => {
-    expect(computeHeat({ levels: [lvl('a', 100)], min: 99, max: 101, rows: 3, bandwidth: 1 })[1]!.zone).toBe('terminal');
-    const rows = computeHeat({ levels: [lvl('m', 100, 'M'), lvl('d', 90, 'D')], min: 89, max: 101, rows: 13, bandwidth: 1 });
-    expect(rows.find((r) => Math.abs(r.price - 100) < 1e-9)!.zone).toBe('terminal');
-    expect(rows.find((r) => Math.abs(r.price - 90) < 1e-9)!.intensity).toBeCloseTo(1 / 3);
-  });
-  it('peakScore finds the strongest level', () => {
-    const seg = (tf: Level['tf'], price: number, developing = false) => ({ tf, price, developing });
-    expect(peakScore([], 1)).toBe(0);
-    expect(peakScore([seg('D', 100), seg('D', 100), seg('M', 50)], 1)).toBeCloseTo(3);
-    expect(peakScore([seg('M', 100, true)], 1)).toBeCloseTo(1.5);
+  it('reference scales with the heaviest frame shown: a lone monthly level is not terminal in a stacked view', () => {
+    expect(referenceScore([lvl('d', 1, 'D')])).toBe(3);
+    expect(referenceScore([lvl('d', 1, 'D'), lvl('m', 1, 'M')])).toBe(9);
+    const rows = computeHeat({ levels: [lvl('m', 100, 'M'), lvl('d', 90, 'D')], min: 99, max: 101, rows: 3, bandwidth: 1 });
+    expect(rows[1]!.intensity).toBeCloseTo(1 / 3);
+    expect(rows[1]!.zone).toBe('void');
+    const cluster = computeHeat({ levels: [lvl('m', 100, 'M'), lvl('w', 100, 'W'), lvl('d1', 100, 'D'), lvl('d2', 100, 'D'), lvl('d3', 100.1, 'D')], min: 99, max: 101, rows: 3, bandwidth: 1 });
+    expect(['friction', 'terminal']).toContain(cluster[1]!.zone);
   });
   it('three coincident daily levels saturate to terminal', () => {
     const rows = computeHeat({ levels: [lvl('a', 100), lvl('b', 100), lvl('c', 100)], min: 99, max: 101, rows: 3, bandwidth: 1 });

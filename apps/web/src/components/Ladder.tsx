@@ -62,7 +62,7 @@ export function zoneBlocks(rows: readonly Pick<HeatRow, 'zone' | 'intensity'>[])
 /**
  * The v1 "Energy Matrix" column: every row painted on the viridis scale
  * (purple = little overlap, yellow = heaviest), each zone run labelled with its
- * name and peak. Percentages are relative to the most weighted area, which is Terminal (see lib/heat.ts).
+ * name and peak. Percentages are on the fixed scale, not relative to the max.
  */
 const MatrixColumn = memo(function MatrixColumn({ rows, x0, x1, top, bottom }: { rows: HeatRow[]; x0: number; x1: number; top: number; bottom: number }) {
   if (!rows.length) return null;
