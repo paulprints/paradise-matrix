@@ -103,7 +103,8 @@ export function ChartView({ state, groups, heat, heatStyle, theme, onInspect, on
         if (w > 0) { score += w; contributors.push({ id: s.id, weight: w }); }
       }
       contributors.sort((a, b) => b.weight - a.weight);
-      const intensity = Math.min(1, score / model.reference);
+      const scale = iv ? model.scaleOf(iv) : 0;
+      const intensity = scale > 0 ? Math.min(1, score / scale) : 0;
       cb.current.onInspect({ price, score, intensity, zone: zoneOf(intensity), contributors });
     };
     chart.subscribeCrosshairMove(onMove);

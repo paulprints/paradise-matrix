@@ -76,13 +76,14 @@ export class HeatLayer implements ISeriesPrimitive<Time> {
         let col = this.cache.get(iv);
         if (!col) {
           col = new Float32Array(rows.length);
+          const scale = m.scaleOf(iv);
           for (let j = 0; j < rows.length; j++) {
             let s = 0;
             for (const idx of iv.active) {
               const seg = m.segments[idx]!;
               s += contribution(seg.tf, seg.developing, seg.price, rows[j]!.price, m.bandwidth);
             }
-            col[j] = Math.min(1, s / m.reference);
+            col[j] = scale > 0 ? Math.min(1, s / scale) : 0;
           }
           this.cache.set(iv, col);
         }
