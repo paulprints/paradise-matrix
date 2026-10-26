@@ -35,7 +35,7 @@ npm run users -w apps/server -- add yourname --admin
 npm run dev                                       # API :3001, web :5173
 ```
 
-Node 20.12+. Live data comes from Yahoo directly, or from `data-server/` if `EXTERNAL_DATA_URL` is set.
+Node 20.12+. Stocks and ETFs come from Massive when `MASSIVE_API_KEY` is set (real-time, split-adjusted, regular session only); indices, futures and anything Massive refuses fall through to Yahoo (or `data-server/` if `EXTERNAL_DATA_URL` is set). The key stays on the server; the browser only talks to this API.
 
 ```bash
 npm run check                          # typecheck + all tests + production builds
@@ -50,7 +50,7 @@ npm run verify:live -w apps/server     # on a machine that can reach Yahoo: live
 ```bash
 git pull && npm ci && npm run build -w apps/server
 # apps/server/.env (exactly ".env", not ".env.txt"): NODE_ENV=production, PORT, JWT_SECRET (32+ chars),
-# DATABASE_PATH -> a copy of v1's app.db kept OUTSIDE the repo, DATA_PROVIDERS=yahoo
+# DATABASE_PATH -> a copy of v1's app.db kept OUTSIDE the repo, MASSIVE_API_KEY, DATA_PROVIDERS=massive,yahoo
 cd apps/server                     # PM2 uses this as the working directory, which is where .env is read
 pm2 start dist/server.js --name paradise-v2
 pm2 logs paradise-v2               # first line must be "[config] loaded …\.env"
