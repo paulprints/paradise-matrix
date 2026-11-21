@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { COMPLETION_GRACE_S, confirmedIndexAt, displayRef, normalizeBars, type RawBar } from '../src/data/bars.ts';
+import { COMPLETION_GRACE_S, confirmedIndexAt, crossesGap, displayRef, normalizeBars, type RawBar } from '../src/data/bars.ts';
 import { XNYS } from '../src/data/calendar.ts';
 
 const at = (s: string) => Date.parse(s) / 1000;
@@ -102,5 +102,22 @@ describe('completion grace scales with timeframe', () => {
     expect(one[0]!.complete).toBe(true);
     const d = normalizeBars([row('2026-09-09T13:30:00Z')], 'D', XNYS, at('2026-09-09T20:10:00Z')).bars;
     expect(d[0]!.complete).toBe(false);
+  });
+});
+
+describe('skipped periods', () => {
+  it('finds a day the provider skipped, but not a holiday', () => {
+    // 09-07 is Labor Day (no gap); 09-09 is missing from the feed (gap).
+    const r = normalizeBars([row('2026-09-03T13:30:00Z'), row('2026-09-04T13:30:00Z'), row('2026-09-08T13:30:00Z'), row('2026-09-10T13:30:00Z')], 'D', XNYS, at('2026-09-12T00:00:00Z'));
+    expect(r.gaps).toEqual([3]);
+    expect(r.warnings.join(' ')).toMatch(/D bar missing between 2026-09-08 and 2026-09-10/);
+  });
+  it('withholds a level while its five source bars or its display bar span the gap', () => {
+    const gaps = [10]; // bars[10] does not follow bars[9]
+    expect(crossesGap(gaps, 8, 1)).toBe(false);  // reads 4–8, drawn on 9
+    expect(crossesGap(gaps, 9, 0)).toBe(false);  // reads 5–9, drawn on 9
+    expect(crossesGap(gaps, 9, 1)).toBe(true);   // drawn on 10, which is a period late
+    expect(crossesGap(gaps, 13, 1)).toBe(true);  // reads 9–13 across the hole
+    expect(crossesGap(gaps, 14, 1)).toBe(false); // reads 10–14, all consecutive
   });
 });

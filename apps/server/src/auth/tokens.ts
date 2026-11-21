@@ -29,7 +29,9 @@ export function requireAuth(store: UserStore, secret: string) {
   return async (req: AuthedRequest, res: Response, next: NextFunction) => {
     const h = req.headers.authorization;
     if (!h?.startsWith('Bearer ')) return void res.status(401).json({ error: 'Not signed in' });
-    const row = await tokenUser(store, h.slice(7), secret);
+    // Express 4 doesn't catch async errors: a failed lookup must reach the error handler, not crash the process.
+    let row: UserRow | null;
+    try { row = await tokenUser(store, h.slice(7), secret); } catch (e) { return next(e); }
     if (!row) return void res.status(401).json({ error: 'Session expired' });
     const u = toPublic(row);
     req.user = { id: u.id, username: u.username, isAdmin: u.isAdmin };

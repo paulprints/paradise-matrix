@@ -85,6 +85,16 @@ describe('auth', () => {
     expect((await s.call('GET', '/api/admin/login-history?limit=5', undefined, adminTok)).body.entries.length).toBeGreaterThan(0);
   });
 
+  it('a database error while checking a token answers 500 and the server keeps running', async () => {
+    await s.store.create('alice', 'password-aaa');
+    const tok = (await login('alice', 'password-aaa')).body.token;
+    const byId = s.store.byId.bind(s.store);
+    s.store.byId = async () => { throw new Error('SQLITE_BUSY: database is locked'); };
+    expect((await s.call('GET', '/api/auth/me', undefined, tok)).status).toBe(500);
+    s.store.byId = byId;
+    expect((await s.call('GET', '/api/auth/me', undefined, tok)).status).toBe(200);
+  });
+
   it('health is public', async () => {
     expect((await s.call('GET', '/health')).body.status).toBe('ok');
   });

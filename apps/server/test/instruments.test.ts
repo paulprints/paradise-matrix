@@ -14,6 +14,8 @@ describe('resolveInstrument', () => {
     ['NQZ26', 'NQZ26.CME', 'future', 0.25],
     ['ZN=F', 'ZN=F', 'future', 1 / 64],
     ['^VIX', '^VIX', 'equity', 0.01],
+    ['btc-usd', 'BTC-USD', 'crypto', 0.01],
+    ['DOGE-USD', 'DOGE-USD', 'crypto', 0.00001],
   ])('%s → %s', (input, symbol, kind, tick) => {
     const r = resolveInstrument(input);
     expect([r.symbol, r.kind, r.tick]).toEqual([symbol, kind, tick]);
@@ -22,6 +24,11 @@ describe('resolveInstrument', () => {
     expect(resolveInstrument('SPY').calendarFidelity).toBe('exact');
     expect(resolveInstrument('ES').calendarFidelity).toBe('approximate');
     expect(resolveInstrument('SPY').adjustment).toBe('split');
+  });
+  it('crypto uses the 24/7 UTC calendar; unlisted coins are refused, not put on NYSE hours', () => {
+    const r = resolveInstrument('BTC-USD');
+    expect([r.calendar, r.timezone, r.adjustment]).toEqual(['CRYPTO-UTC', 'UTC', 'none']);
+    expect(() => resolveInstrument('ADA-USD')).toThrow(/not supported/);
   });
   it('rejects junk and unknown futures roots', () => {
     expect(() => resolveInstrument('XX=F')).toThrow(InstrumentError);

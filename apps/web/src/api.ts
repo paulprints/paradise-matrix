@@ -1,4 +1,4 @@
-import type { ChartRequest, ChartResponse, Drawing, DrawingsResponse, LevelsRequest, LevelsResponse, LoginResponse, LinkAccess, MemberRole, ShareConfig, ShareInfo, ShareMember, ShareOpenResponse, User } from '@paradise/contract';
+import type { ChartRequest, ChartResponse, Drawing, DrawingsResponse, LevelsRequest, LevelsResponse, LoginResponse, LinkAccess, MemberRole, ShareConfig, ShareInfo, ShareMember, ShareOpenResponse, User, TpoRequest, TpoResponse } from '@paradise/contract';
 
 export const API_ORIGIN: string | undefined = import.meta.env.VITE_API_URL || undefined;
 const BASE = `${(API_ORIGIN ?? '').replace(/\/+$/, '')}/api`;
@@ -50,6 +50,7 @@ export const api = {
   logout: () => tokenStore.clear(),
   levels: (req: LevelsRequest, signal?: AbortSignal) => request<LevelsResponse>('POST', '/levels', req, signal),
   chart: (req: ChartRequest, signal?: AbortSignal) => request<ChartResponse>('POST', '/chart', req, signal),
+  tpo: (req: TpoRequest, signal?: AbortSignal) => request<TpoResponse>('POST', '/tpo', req, signal),
   drawings: (symbol: string, signal?: AbortSignal) => request<DrawingsResponse>('GET', `/drawings?symbol=${encodeURIComponent(symbol)}`, undefined, signal),
   saveDrawings: (symbol: string, drawings: Drawing[], baseUpdatedAt: string | null) => request<DrawingsResponse>('PUT', '/drawings', { symbol, drawings, baseUpdatedAt }),
   createShare: (title: string, config: ShareConfig, drawings: Drawing[], linkAccess: LinkAccess) => request<{ share: ShareInfo }>('POST', '/shares', { title, config, drawings, linkAccess }).then((r) => r.share),

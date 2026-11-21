@@ -23,6 +23,13 @@ const sample = [
 ];
 
 describe('drawings', () => {
+  it('a save over the size limit is a clear 413, not an internal error', async () => {
+    const big = JSON.stringify({ symbol: 'QQQ', drawings: [], pad: 'x'.repeat(600_000) });
+    const r = await s.call('PUT', '/api/drawings', big, tokA);
+    expect(r.status).toBe(413);
+    expect(r.body.error).toMatch(/delete some drawings/);
+  });
+
   it('round-trips all six kinds, per member', async () => {
     const put = await s.call('PUT', '/api/drawings', { symbol: 'QQQ', drawings: sample }, tokA);
     expect(put.status).toBe(200);

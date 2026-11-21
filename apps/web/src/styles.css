@@ -260,6 +260,9 @@ a.btn.primary { color: var(--plate); }
 
 .chart-reset { position: absolute; z-index: 4; left: 12px; top: 10px; padding: 4px 10px; font-size: var(--step--1); background: var(--plate-2); opacity: 0.85; }
 .chart-reset:hover { opacity: 1; }
+.tpo-tip { position: absolute; z-index: 5; pointer-events: none; padding: 6px 8px; font-size: var(--step--1); line-height: 1.45; background: var(--plate-2); border: 1px solid var(--rule); border-radius: 4px; color: var(--paper); white-space: nowrap; max-width: 280px; }
+.tpo-tip strong { display: block; margin-bottom: 2px; }
+.pop-panel .row { display: flex; gap: 6px; flex-wrap: wrap; margin: 4px 0; }
 
 /* Shared charts */
 .sharebar {

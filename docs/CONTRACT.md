@@ -11,6 +11,7 @@ All routes except `/health` and `/api/auth/login` require `Authorization: Bearer
 | GET | `/api/auth/me` | | `{user}` |
 | POST | `/api/levels` | `LevelsRequest` | `LevelsResponse` (ladder: current levels) |
 | POST | `/api/chart` | `ChartRequest` | `ChartResponse` (candles + level history) |
+| POST | `/api/tpo` | `TpoRequest` | `TpoResponse` (TPO / Market Profile chart) |
 | GET | `/api/drawings` | `?symbol` | `DrawingsResponse` (yours, for that instrument) |
 | PUT | `/api/drawings` | `{symbol, drawings, baseUpdatedAt?}` | `DrawingsResponse` (replaces the set). With `baseUpdatedAt` (the `updatedAt` you loaded; `null` if none), 409 `{error, details: DrawingsResponse}` if it was saved elsewhere since |
 | POST | `/api/shares` | `{title, config: ShareConfig, drawings, linkAccess?}` | 201 `{share}` (200 per owner) |
@@ -28,11 +29,11 @@ All routes except `/health` and `/api/auth/login` require `Authorization: Bearer
 | DELETE | `/api/admin/users/:id` | | 204 |
 | GET | `/api/admin/login-history` | `?username&limit` | `{entries}` |
 
-Errors: `{error, details?}` with 400 (input, unknown symbol, future asOf), 401, 403, 404, 503 (all providers failed; `details` lists each attempt).
+Errors: `{error, details?}` with 400 (input, unknown symbol, future asOf), 401, 403, 404, 413 (body over 512 KB, e.g. too many drawings to save at once), 503 (all providers failed; `details` lists each attempt).
 
 ### `LevelsRequest`
 ```jsonc
-{ "symbol": "QQQ",               // QQQ, BRK.B, NQ, /ES, NQ=F, NQZ26, NQZ26.CME, "MNQ 12-26"
+{ "symbol": "QQQ",               // QQQ, BRK.B, NQ, /ES, NQ=F, NQZ26, NQZ26.CME, "MNQ 12-26", BTC-USD
   "timeframes": ["M","W","D"],   // one = single view, several = stacked
   "displacement": 1,             // 1 normal, or 0
   "asOf": null,                  // ISO instant; send an anchor's `end` to step back
@@ -63,6 +64,16 @@ The response carries `bars` (`{t,o,h,l,c,v,complete}`), `keys` (level descriptio
 `[keyIndex, tf, price, from, to, basis, source]`: one level on one display bar, valid from `from` to `to` (unix seconds, that bar's window), computed from the bar starting at `source`. `basis` is 0 for confirmed and 1 for developing. With +1 displacement, a 15m bar's levels are valid for the next 15m bar. They stay in the history after the next bar's levels replace them.
 
 **Incremental updates.** With `since`, only bars with `t ≥ since` and segments whose window ends after `since` are returned. The client keeps everything else, because a segment that ended before `since` never changes. A test proves the merged result equals a full load. The web app polls with `since` = start of its newest bar, every 5 s (1m) up to 2 min (W/M).
+
+### `TpoRequest` / `TpoResponse`
+```jsonc
+{ "symbol": "QQQ", "session": "D",   // one profile per D, W or M
+  "block": "30m",                      // time per letter: 5m, 30m, 1H, 4H (4H = 1H bars grouped from each session's open)
+  "rowTicks": 40,                      // optional row height in ticks; omitted = same automatic size as the Market Profile levels
+  "valueArea": 70, "vaMethod": "two",  // 50–95 %; "two" rows (standard) or "one" row per step
+  "ibMinutes": 60, "tailMin": 2, "profiles": 20 }
+```
+Each profile has its session `start`/`end`, `complete`, the start time of each letter (`periods`), and `rows`: letter indexes per price row from `base` upward (row i at `base + i × rowSize`). It also carries POC/VAH/VAL from letter counts (the same arithmetic as the `profile` levels, `tpo@1` sharing `profile-tpo@1`'s rows and auction) and from **estimated** volume (`vpoc`/`vvah`/`vval`: each block's volume spread evenly over its rows, since bars carry no volume-at-price). Further fields: high/low/mid/open/close, initial balance, TPO counts above and below the POC, poor high/low (two or more letters on the extreme row), single-print runs, buying and selling tails, the developing POC/VAH/VAL after each letter, and `touched`, the first later block that traded back to each level (null = still naked). A session whose history starts mid-session is skipped with a warning. A row height so small that building the profiles would take too long (rows × letters over 2×10⁷) is refused with 400. `ibMinutes` in the response is what was used: the initial balance is whole blocks, so 4H blocks always give 240 (with a warning when it differs from the request).
 
 **Drawings** are stored per member and per *resolved* instrument (`NQ`, `/NQ` and `NQ=F` share). Kinds: `trend` (optional right extension), `hline`, `vline`, `rect`, `text` (≤200 chars), `brush` (≤2000 points). Each has an `id` and a colour (`paper`, `ink`, `seal`, `alert`, `sky`). Limit: 500 per instrument. Anchors are `{t: unix seconds, p: price}`.
 
@@ -97,12 +108,12 @@ Owner changes arrive as `share {share, role}` (your role included, so a promotio
 
 - **Bar times** are period starts (UTC ISO). **Labels** are exchange-local: `2026-09-08` (D), `wk 2026-09-07` (W, Monday), `2026-09` (M), `2026-09-08 10:30` (intraday).
 - **Completeness:** a bar is complete when `now ≥ period end + grace`. The grace is 15 min for D/W/M (feeds settle late), and `min(60 s, span/4)` intraday, so 15 s for 1m and 60 s otherwise. A flat 15-minute grace would hold a 5m chart three bars behind. Period end = session close (D), last trading session's close (W/M), or `min(start + interval, session close)` intraday.
-- **Calendars:** `XNYS` (exact: NYSE holidays and 1 pm early closes, 2024–2027) for equities; `CME-EQUITY` (approximate: Globex 17:00–16:00 CT, NYSE holidays as non-trading, early halts not modelled) for futures. Outside the tabulated years only weekday rules apply, and the response warns.
+- **Calendars:** `XNYS` (exact: NYSE holidays and 1 pm early closes, 2024–2027) for equities; `CME-EQUITY` (approximate: Globex 17:00–16:00 CT, NYSE holidays as non-trading, early halts not modelled) for futures; `CRYPTO-UTC` (exact: 24/7, days 00:00–24:00 UTC, ISO weeks from Monday 00:00 UTC, matching Yahoo's own crypto bars) for crypto spot. Crypto is a fixed list (BTC, ETH, SOL, XRP, DOGE as `-USD`); other `-USD` pairs are refused rather than charted on NYSE hours. Outside the tabulated years only weekday rules apply, and the response warns.
 - **as-of:** bars that start after `asOf` are dropped; each frame uses the last bar complete at `asOf`; developing is off. `anchors[i].end` is exactly the instant at which bar `i` became complete.
 
 ## Data
 
-Providers return `{t, o, h, l, c, v}` rows. Adjustment: **split-adjusted, not dividend-adjusted** for every provider (Yahoo chart `quote` arrays; data-server `auto_adjust=False`). Futures are unadjusted; continuous `=F` symbols are Yahoo's front month, and specific contracts are available (`NQZ26`). Normalisation drops malformed or off-calendar rows (with a warning, never silently) and merges duplicate rows in one period, keeping the latest (Yahoo's trailing "live" weekly/monthly row).
+Providers return `{t, o, h, l, c, v}` rows. Adjustment: **split-adjusted, not dividend-adjusted** for every provider (Yahoo chart `quote` arrays; data-server `auto_adjust=False`). Futures are unadjusted; continuous `=F` symbols are Yahoo's front month, and specific contracts are available (`NQZ26`). Normalisation drops malformed or off-calendar rows (with a warning, never silently) and merges duplicate rows in one period, keeping the latest (Yahoo's trailing "live" weekly/monthly row). If a D/W/M period is missing between two bars (the provider skipped it; holidays don't count), the frame warns, and levels whose five source bars or display bar span the hole are withheld rather than drawn a period late.
 
 **Yahoo's blank latest close.** After a session ends, Yahoo can publish the newest bar with open/high/low/volume but a blank close (observed 2026-10-16). When the response's session summary (`meta.regularMarketTime`) falls inside that exact bar, its `regularMarketPrice` becomes the close and the frame carries a warning saying so. Nothing else is ever filled in; any other incomplete row is dropped with a warning.
 

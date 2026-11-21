@@ -105,10 +105,6 @@ export class UserStore {
     return ((await this.db.run('DELETE FROM users WHERE id = ?', id)).changes ?? 0) > 0;
   }
 
-  async adminCount(): Promise<number> {
-    return (await this.db.get<{ n: number }>('SELECT COUNT(*) AS n FROM users WHERE is_admin = 1'))!.n;
-  }
-
   /** Constant-ish time: always runs one bcrypt compare, even for unknown users. */
   async verify(username: string, password: string): Promise<UserRow | null> {
     const u = await this.byUsername(username);

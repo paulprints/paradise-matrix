@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { CME_EQUITY, XNYS, nextPeriodKey, nextTradingDay, periodBounds, periodKeyOf, weekKey } from '../src/data/calendar.ts';
+import { CME_EQUITY, CRYPTO_UTC, XNYS, nextPeriodKey, nextTradingDay, periodBounds, periodKeyOf, weekKey } from '../src/data/calendar.ts';
 import { iso, zonedToUnix } from '../src/data/time.ts';
+import { normalizeBars } from '../src/data/bars.ts';
 
 const at = (s: string) => Date.parse(s) / 1000;
 
@@ -51,4 +52,29 @@ describe('CME equity (approximate)', () => {
     expect(iso(CME_EQUITY.sessionClose('2026-09-21'))).toBe('2026-09-21T21:00:00.000Z');
   });
   it('is flagged approximate', () => expect(CME_EQUITY.fidelity).toBe('approximate'));
+});
+
+describe('CRYPTO_UTC', () => {
+  it('trades every day, 00:00–24:00 UTC', () => {
+    expect(CRYPTO_UTC.isTradingDay('2026-11-21')).toBe(true); // Saturday
+    expect(CRYPTO_UTC.isTradingDay('2026-12-25')).toBe(true);
+    expect(iso(CRYPTO_UTC.sessionOpen('2026-11-21'))).toBe('2026-11-21T00:00:00.000Z');
+    expect(iso(CRYPTO_UTC.sessionClose('2026-11-21'))).toBe('2026-11-22T00:00:00.000Z');
+    expect(CRYPTO_UTC.sessionDateOf(at('2026-11-21T23:59:59Z'))).toBe('2026-11-21');
+    expect(nextTradingDay(CRYPTO_UTC, '2026-11-20')).toBe('2026-11-21');
+  });
+  it('weeks run Monday 00:00 → next Monday 00:00 UTC; months cover every day', () => {
+    expect(periodKeyOf(CRYPTO_UTC, 'W', at('2026-11-22T12:00:00Z'))).toBe('2026-11-16'); // Sunday
+    const w = periodBounds(CRYPTO_UTC, 'W', '2026-11-16')!;
+    expect([iso(w.start), iso(w.end)]).toEqual(['2026-11-16T00:00:00.000Z', '2026-11-23T00:00:00.000Z']);
+    const m = periodBounds(CRYPTO_UTC, 'M', '2026-11')!;
+    expect([iso(m.start), iso(m.end)]).toEqual(['2026-11-01T00:00:00.000Z', '2026-12-01T00:00:00.000Z']);
+  });
+  it('keeps weekend daily bars (NYSE hours would drop them)', () => {
+    const raw = ['2026-11-13', '2026-11-14', '2026-11-15', '2026-11-16'].map((d) => ({ t: at(`${d}T00:00:00Z`), o: 1, h: 2, l: 0.5, c: 1.5, v: 1 }));
+    const r = normalizeBars(raw, 'D', CRYPTO_UTC, at('2026-11-17T12:00:00Z'));
+    expect(r.dropped).toBe(0);
+    expect(r.bars.map((b) => b.complete)).toEqual([true, true, true, true]);
+    expect(normalizeBars(raw, 'D', XNYS, at('2026-11-17T12:00:00Z')).dropped).toBe(2);
+  });
 });
