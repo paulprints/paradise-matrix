@@ -48,7 +48,7 @@ export class LevelsLayer implements ISeriesPrimitive<Time> {
 
   private x(t: number): number | null {
     const m = this.model;
-    return logicalToX(this.p!.chart.timeScale() as unknown as LogicalScale, timeToLogical(m.times, m.span, t));
+    return logicalToX(this.p!.chart.timeScale() as unknown as LogicalScale, timeToLogical(m.times, m.span, t, m.timeline));
   }
 
   private drawLines(target: CanvasRenderingTarget2D) {

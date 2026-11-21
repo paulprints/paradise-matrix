@@ -102,7 +102,7 @@ export function ChartView({ state, groups, heat, heatStyle, theme, onInspect, on
       if (!p.point || p.logical === undefined) return cb.current.onInspect(null);
       const price = series.coordinateToPrice(p.point.y);
       if (price === null) return cb.current.onInspect(null);
-      const iv = intervalAt(model.timeline, logicalToTime(model.times, model.span, p.logical));
+      const iv = intervalAt(model.timeline, logicalToTime(model.times, model.span, p.logical, model.timeline));
       const contributors: HeatRow['contributors'] = [];
       let score = 0;
       for (const idx of iv?.active ?? []) {

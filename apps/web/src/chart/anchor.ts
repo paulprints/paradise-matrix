@@ -9,7 +9,7 @@ export interface Pt { x: number; y: number }
 
 export function projectAnchor(p: SeriesAttachedParameter<Time> | null, model: RenderModel, a: Anchor): Pt | null {
   if (!p || !model.times.length) return null;
-  const x = logicalToX(p.chart.timeScale() as unknown as LogicalScale, timeToLogical(model.times, model.span, a.t));
+  const x = logicalToX(p.chart.timeScale() as unknown as LogicalScale, timeToLogical(model.times, model.span, a.t, model.timeline));
   const y = p.series.priceToCoordinate(a.p);
   return x === null || y === null ? null : { x, y };
 }
@@ -18,5 +18,5 @@ export function unprojectPoint(p: SeriesAttachedParameter<Time> | null, model: R
   if (!p || !model.times.length) return null;
   const logical = xToLogical(p.chart.timeScale() as unknown as LogicalScale, pt.x);
   const price = p.series.coordinateToPrice(pt.y);
-  return logical === null || price === null ? null : { t: Math.round(logicalToTime(model.times, model.span, logical)), p: price };
+  return logical === null || price === null ? null : { t: Math.round(logicalToTime(model.times, model.span, logical, model.timeline)), p: price };
 }

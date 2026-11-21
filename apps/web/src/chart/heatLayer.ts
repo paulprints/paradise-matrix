@@ -93,7 +93,7 @@ export class HeatLayer implements ISeriesPrimitive<Time> {
       const paths = Array.from({ length: buckets }, () => new Path2D());
       const kStart = Math.floor(range.from / step) * step - step, kEnd = Math.ceil(range.to) + step;
       for (let k = kStart; k <= kEnd; k += step) {
-        const iv = intervalAt(m.timeline, logicalToTime(m.times, m.span, k));
+        const iv = intervalAt(m.timeline, logicalToTime(m.times, m.span, k, m.timeline));
         if (!iv) continue;
         const col = column(iv);
         if (matrix) {

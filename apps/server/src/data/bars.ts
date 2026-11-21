@@ -46,7 +46,7 @@ const sane = (r: RawBar) => r.h >= r.l && r.h >= Math.min(r.o, r.c) && r.l <= Ma
 
 export function normalizeBars(raw: readonly RawBar[], tf: Timeframe, cal: ExchangeCalendar, now: number): NormalizeResult {
   const warnings: string[] = [];
-  let dropped = 0;
+  let dropped = 0, offSession = 0;
   const byKey = new Map<string, { r: RawBar; start: number; end: number; key: string }>();
 
   for (const r of [...raw].sort((a, b) => a.t - b.t)) {
@@ -61,14 +61,17 @@ export function normalizeBars(raw: readonly RawBar[], tf: Timeframe, cal: Exchan
       const span = INTRADAY_SECONDS[tf]!;
       start = r.t;
       key = String(start);
-      const sessionEnd = cal.sessionClose(cal.sessionDateOf(start));
-      end = Math.min(start + span, sessionEnd > start ? sessionEnd : start + span);
+      const date = cal.sessionDateOf(start), sessionEnd = cal.sessionClose(date);
+      // A row outside its session (Yahoo's 16:00 ET closing stub) is no session bar, and its window would run past the close.
+      if (start >= sessionEnd || start < cal.sessionOpen(date)) { dropped++; offSession++; continue; }
+      end = Math.min(start + span, sessionEnd);
     }
     // Two rows in one period (e.g. a provider's trailing "live" row): keep the later one.
     const prev = byKey.get(key);
     if (!prev || r.t >= prev.r.t) byKey.set(key, { r, start, end, key });
   }
-  if (dropped) warnings.push(`${dropped} malformed or off-calendar ${tf} row(s) dropped`);
+  if (dropped > offSession) warnings.push(`${dropped - offSession} malformed or off-calendar ${tf} row(s) dropped`);
+  if (offSession) warnings.push(`${offSession} ${tf} row(s) outside the session dropped (the provider's closing stubs)`);
   for (const { r, key } of byKey.values()) if (r.note) warnings.push(`${tf} ${periodLabel(tf, key, cal, r.t)}: ${r.note}`);
 
   const grace = graceFor(tf);
