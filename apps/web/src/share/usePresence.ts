@@ -55,7 +55,7 @@ export function usePresence(
     const range = handles?.chart.timeScale().getVisibleLogicalRange();
     if (!st || !range || !handles) return null;
     const m = handles.model;
-    return { chartTf: st.chartTf as Timeframe, timeframes: v.timeframes, from: Math.round(logicalToTime(m.times, m.span, range.from)), to: Math.round(logicalToTime(m.times, m.span, range.to)) };
+    return { chartTf: st.chartTf as Timeframe, timeframes: v.timeframes, from: Math.round(logicalToTime(m.times, m.span, range.from, m.timeline)), to: Math.round(logicalToTime(m.times, m.span, range.to, m.timeline)) };
   };
 
   // Send our cursor.
@@ -109,7 +109,7 @@ export function usePresence(
     if (!m.times.length) return;
     const cur = currentView();
     if (cur && sameView(cur, pv, m.span)) return;
-    handles.chart.timeScale().setVisibleLogicalRange({ from: timeToLogical(m.times, m.span, pv.from), to: timeToLogical(m.times, m.span, pv.to) });
+    handles.chart.timeScale().setVisibleLogicalRange({ from: timeToLogical(m.times, m.span, pv.from, m.timeline), to: timeToLogical(m.times, m.span, pv.to, m.timeline) });
   }, [pv, handles, state, setView]);
 
   // A follower who pans, zooms or scrolls takes back control.

@@ -125,3 +125,11 @@ describe('skipped periods', () => {
     expect(crossesGap(gaps, 14, 1)).toBe(false); // reads 10–14, all consecutive
   });
 });
+
+describe('normalizeBars — intraday', () => {
+  it('drops a stub row at the close (Yahoo 16:00 ET bar) with a warning', () => {
+    const r = normalizeBars([row('2026-09-08T19:45:00Z'), row('2026-09-08T20:00:00Z')], '15m', XNYS, at('2026-09-09T00:00:00Z'));
+    expect(r.bars.map((b) => new Date(b.t * 1000).toISOString().slice(11, 16))).toEqual(['19:45']);
+    expect(r.warnings).toEqual(["1 15m row(s) outside the session dropped (the provider's closing stubs)"]);
+  });
+});

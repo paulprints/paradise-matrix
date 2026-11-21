@@ -25,6 +25,18 @@ describe('time ↔ logical', () => {
       expect(logicalToTime(times, 300, timeToLogical(times, 300, t))).toBeCloseTo(t, 6);
     }
   });
+  it('in the future, closed hours collapse: the next session sits right after the last bar', () => {
+    // Last bar 10_300 (ends 10_600). Levels cover until 11_200, nothing overnight, then from 50_000 on.
+    const open = [{ from: 9_000, to: 11_200 }, { from: 50_000, to: 51_000 }];
+    expect(timeToLogical(times, 300, 11_200, open)).toBe(6.5);       // 600 s of today after the last bar
+    expect(timeToLogical(times, 300, 30_000, open)).toBe(6.5);       // overnight collapses to that edge
+    expect(timeToLogical(times, 300, 50_300, open)).toBe(7.5);       // next session continues straight on
+    expect(timeToLogical(times, 300, 51_600, open)).toBeCloseTo(4.5 + 2_200 / 300); // past the last window: linear again
+    for (const t of [10_450, 11_000, 50_100, 50_700, 52_000]) {
+      expect(logicalToTime(times, 300, timeToLogical(times, 300, t, open), open)).toBeCloseTo(t, 6);
+    }
+    expect(timeToLogical(times, 300, 30_000)).toBeCloseTo(4.5 + 19_400 / 300); // without windows: clock time, as before
+  });
   it('barIndexAt and barSpan', () => {
     expect([barIndexAt(times, -1), barIndexAt(times, 0), barIndexAt(times, 9_999), barIndexAt(times, 99_999)]).toEqual([-1, 0, 2, 4]);
     expect(barSpan(times)).toBe(300);

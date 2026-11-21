@@ -39,7 +39,7 @@ export class PresenceLayer implements ISeriesPrimitive<Time> {
   private place(c: RemoteCursor, dt: number, snap: boolean): (Pt & { moving: boolean }) | null {
     const m = this.model, p = this.p;
     if (!p || !m.times.length) return null;
-    const target = { l: timeToLogical(m.times, m.span, c.at.t), p: c.at.p };
+    const target = { l: timeToLogical(m.times, m.span, c.at.t, m.timeline), p: c.at.p };
     const prev = this.shown.get(c.id);
     const cur = prev && !snap ? { l: approach(prev.l, target.l, dt, CURSOR_TAU), p: approach(prev.p, target.p, dt, CURSOR_TAU) } : target;
     this.shown.set(c.id, cur);
