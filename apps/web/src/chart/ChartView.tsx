@@ -8,6 +8,7 @@ import { HeatLayer } from './heatLayer.ts';
 import { LevelsLayer } from './levelsLayer.ts';
 import { TpoLayer, type TpoHit } from './tpoLayer.ts';
 import { DEFAULT_TPO, tpoLetter, type TpoSettings } from '../lib/tpo.ts';
+import { candleColors, type CandleColors } from '../lib/candles.ts';
 import { RenderModel } from './model.ts';
 import { intervalAt, type ChartState } from './state.ts';
 import { readPalette, withAlpha, type Palette } from './theme.ts';
@@ -31,6 +32,8 @@ interface Props {
   onReady?: (h: ChartHandles | null) => void;
   /** TPO profiles to draw (null = off). */
   tpo?: { data: TpoResponse | null; settings: TpoSettings } | null;
+  /** The member's own candle colours (unset parts follow the theme). */
+  candles?: CandleColors;
 }
 
 const INTRADAY = new Set(['1m', '5m', '15m', '30m', '1H']);
@@ -53,11 +56,6 @@ function chartColors(P: Palette) {
     },
   };
 }
-const candleColors = (P: Palette) => ({
-  upColor: P.plate, borderUpColor: P.paper, wickUpColor: P.paper,
-  downColor: P.alert, borderDownColor: P.alert, wickDownColor: P.alert,
-  priceLineColor: P.seal,
-});
 
 /** Latest bars, default zoom, price axis fitted to the candles. */
 export function resetView(chart: IChartApi, series: ISeriesApi<'Candlestick'>) {
@@ -68,7 +66,7 @@ export function resetView(chart: IChartApi, series: ISeriesApi<'Candlestick'>) {
   chart.timeScale().scrollToRealTime();
 }
 
-export function ChartView({ state, groups, heat, heatStyle, theme, onInspect, onNeedMore, onReady, tpo }: Props) {
+export function ChartView({ state, groups, heat, heatStyle, theme, onInspect, onNeedMore, onReady, tpo, candles }: Props) {
   const box = useRef<HTMLDivElement>(null);
   const h = useRef<{ chart: IChartApi; series: ISeriesApi<'Candlestick'>; model: RenderModel; heat: HeatLayer; levels: LevelsLayer; tpo: TpoLayer } | null>(null);
   const shown = useRef<{ symbol: string; tf: string; first: number; times: number[] } | null>(null);
@@ -89,7 +87,7 @@ export function ChartView({ state, groups, heat, heatStyle, theme, onInspect, on
       timeScale: { ...chartColors(P).timeScale, rightOffset: 24, barSpacing: 7, minBarSpacing: 0.5 },
       rightPriceScale: { ...chartColors(P).rightPriceScale, scaleMargins: { top: 0.08, bottom: 0.08 } },
     });
-    const series = chart.addSeries(CandlestickSeries, { ...candleColors(P), priceLineWidth: 1, lastValueVisible: true });
+    const series = chart.addSeries(CandlestickSeries, { ...candleColors(P, candles), priceLineColor: P.seal, priceLineWidth: 1, lastValueVisible: true });
     const model = new RenderModel();
     model.palette = P;
     const heatL = new HeatLayer(model), levelsL = new LevelsLayer(model), tpoL = new TpoLayer(model);
@@ -138,12 +136,12 @@ export function ChartView({ state, groups, heat, heatStyle, theme, onInspect, on
     const P = readPalette();
     c.model.palette = P;
     c.chart.applyOptions(chartColors(P));
-    c.series.applyOptions(candleColors(P));
+    c.series.applyOptions({ priceLineColor: P.seal });
     c.heat.invalidate();
     c.tpo.invalidate();
   }, [theme]);
 
-  // TPO profiles, optionally with the candles hidden (transparent) so the letters read cleanly.
+  // TPO profiles; candles in the member's colours, or hidden (transparent) so the TPO letters read cleanly.
   useEffect(() => { h.current?.tpo.set(tpo?.data ?? null, tpo?.settings ?? DEFAULT_TPO); }, [tpo?.data, tpo?.settings]);
   const hideCandles = !!tpo?.settings.hideCandles;
   useEffect(() => {
@@ -152,8 +150,8 @@ export function ChartView({ state, groups, heat, heatStyle, theme, onInspect, on
     const clear = 'rgba(0, 0, 0, 0)';
     c.series.applyOptions(hideCandles
       ? { upColor: clear, downColor: clear, borderUpColor: clear, borderDownColor: clear, wickUpColor: clear, wickDownColor: clear }
-      : candleColors(readPalette()));
-  }, [hideCandles, theme]);
+      : candleColors(readPalette(), candles));
+  }, [hideCandles, theme, candles]);
 
   // Data.
   useEffect(() => {

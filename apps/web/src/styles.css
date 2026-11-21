@@ -212,6 +212,9 @@ a.btn.primary { color: var(--plate); }
   padding: 14px 16px; display: grid; gap: 10px; box-shadow: 0 18px 40px rgb(0 0 0 / 0.35);
 }
 .pop-panel h4 { margin: 4px 0 0; font-size: var(--step--1); color: var(--sage); font-weight: 600; }
+.candle-grid { display: grid; grid-template-columns: 1fr 44px 44px; gap: 6px 8px; align-items: center; }
+.candle-row { display: contents; }
+.candle-grid input[type=color] { width: 44px; height: 24px; padding: 0; border: 1px solid var(--rule); background: none; cursor: pointer; }
 .help-panel { width: min(420px, 92vw); line-height: 1.5; }
 .help-panel p { margin: 0; font-size: var(--step--1); }
 

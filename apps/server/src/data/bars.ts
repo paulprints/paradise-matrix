@@ -5,7 +5,7 @@
  */
 import type { Timeframe } from '@paradise/contract';
 import type { EngineBar } from '@paradise/engine';
-import { INTRADAY_SECONDS, nextPeriodKey, nextTradingDay, periodBounds, periodKeyOf, periodLabel, type ExchangeCalendar } from './calendar.ts';
+import { calendarCovers, INTRADAY_SECONDS, nextPeriodKey, nextTradingDay, periodBounds, periodKeyOf, periodLabel, type ExchangeCalendar } from './calendar.ts';
 
 export interface RawBar {
   t: number; o: number; h: number; l: number; c: number; v: number;
@@ -92,6 +92,8 @@ export function normalizeBars(raw: readonly RawBar[], tf: Timeframe, cal: Exchan
   if (tf === 'D' || tf === 'W' || tf === 'M') {
     for (let i = 1; i < bars.length; i++) {
       if (nextPeriodKey(cal, tf, bars[i - 1]!.key) === bars[i]!.key) continue;
+      // Outside the tabulated holiday years a holiday looks like a skipped day: only flag what the calendar can vouch for.
+      if (!calendarCovers(cal, bars[i - 1]!.t) || !calendarCovers(cal, bars[i]!.t)) continue;
       gaps.push(i);
       warnings.push(`${tf} bar missing between ${bars[i - 1]!.label} and ${bars[i]!.label}; levels whose bars span it are withheld`);
     }

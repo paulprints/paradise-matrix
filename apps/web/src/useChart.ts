@@ -17,11 +17,11 @@ export function useChart(view: ViewState, enabled: boolean) {
   const [history, setHistory] = useState(1000);
   const stateRef = useRef<ChartState | null>(null);
   stateRef.current = state;
-  const key = JSON.stringify([view.symbol, view.chartTf, view.timeframes, view.displacement, view.developing, view.profile, history]);
+  const key = JSON.stringify([view.symbol, view.chartTf, view.timeframes, view.displacement, view.developing, history]);
 
   const request = (since?: number) => ({
     symbol: view.symbol, chartTf: view.chartTf, overlays: view.timeframes, displacement: view.displacement,
-    developing: view.developing, profile: view.profile, bars: history, ...(since !== undefined ? { since } : {}),
+    developing: view.developing, bars: history, ...(since !== undefined ? { since } : {}),
   });
 
   useEffect(() => {

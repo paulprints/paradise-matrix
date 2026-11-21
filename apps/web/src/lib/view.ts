@@ -14,7 +14,6 @@ export interface ViewState {
   displacement: 0 | 1;
   asOf: string | null;
   developing: boolean;
-  profile: boolean;
   groups: LevelGroup[];
   heat: boolean;
   heatStyle: HeatStyle;
@@ -32,7 +31,6 @@ export const DEFAULT_VIEW: ViewState = {
   displacement: 1,
   asOf: null,
   developing: false,
-  profile: false,
   groups: ['structure', 'range', 'profile'],
   heat: true,
   heatStyle: 'matrix',
@@ -57,7 +55,6 @@ export function parseView(search: string): ViewState {
   const asOf = q.get('asof');
   if (asOf && !Number.isNaN(Date.parse(asOf))) v.asOf = new Date(asOf).toISOString();
   v.developing = q.get('dev') === '1';
-  v.profile = q.get('mp') === '1';
   const g = q.get('g')?.split(',').filter((x): x is LevelGroup => (GROUPS as string[]).includes(x));
   if (g) v.groups = g;
   if (q.get('heat') === '0') v.heat = false;
@@ -77,7 +74,6 @@ export function serializeView(v: ViewState): string {
   if (v.displacement === 0) q.set('d', '0');
   if (v.asOf) q.set('asof', v.asOf);
   if (v.developing) q.set('dev', '1');
-  if (v.profile) q.set('mp', '1');
   if (v.groups.join(',') !== DEFAULT_VIEW.groups.join(',')) q.set('g', v.groups.join(','));
   if (!v.heat) q.set('heat', '0');
   if (v.heatStyle !== DEFAULT_VIEW.heatStyle) q.set('hs', v.heatStyle);

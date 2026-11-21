@@ -71,7 +71,7 @@ export function ShareBar({ share, view, onExit }: { share: ShareSession; view: V
         <Popover label={<>People{waiting ? <span className="count" aria-label={`${waiting} waiting`}>{waiting}</span> : null}</>} wide onOpen={() => void share.refreshMembers()} className={waiting ? 'attention' : ''}>
           {(close) => (
             <div className="share-menu">
-              <CopyLink label="Link" note="one link for everyone" url={shareLink(origin, info.id)} />
+              <CopyLink label="Link" url={shareLink(origin, info.id)} />
               <LinkAccessPicker value={info.linkAccess} onChange={(v) => void share.setLinkAccess(v)} />
               <PeoplePanel members={share.members} onSet={(id, r) => void share.setMember(id, r)} />
               <h4>Chart</h4>
