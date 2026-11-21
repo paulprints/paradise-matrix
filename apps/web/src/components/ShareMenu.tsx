@@ -41,15 +41,13 @@ export function ShareMenu({ view, drawings }: { view: ViewState; drawings: Drawi
         {made ? (
           <>
             <h4>“{made.title}” is ready</h4>
-            <CopyLink label="Link" note="send it to anyone in the group" url={shareLink(origin, made.id)} />
+            <CopyLink label="Link" url={shareLink(origin, made.id)} />
             <LinkAccessPicker value={made.linkAccess} onChange={async (v) => { try { setMade(await api.updateShare(made.id, { linkAccess: v })); } catch (e) { setError((e as Error).message); } }} />
-            <p className="note">Everyone who opens it appears under <strong>People</strong> on the shared chart, where you choose who can view or edit.</p>
             <div className="row"><a className="btn primary" href={shareLink(origin, made.id)}>Open shared chart</a><button className="btn quiet" onClick={() => setMade(null)}>Share another</button></div>
           </>
         ) : (
           <form onSubmit={(e) => { e.preventDefault(); void create(); }}>
             <h4>Share this chart</h4>
-            <p className="note">Makes a shared copy of this view ({view.symbol}, {view.chartTf} candles, {view.timeframes.join(' + ')} levels) with your {drawings.length} drawing{drawings.length === 1 ? '' : 's'}. Your own chart stays as it is.</p>
             <label className="field stack">
               <span className="muted">Title</span>
               <input value={title} onChange={(e) => setTitle(e.target.value)} maxLength={SHARE_LIMITS.titleLength} placeholder={`${view.symbol} ${view.chartTf}`} />

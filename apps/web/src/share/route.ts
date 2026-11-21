@@ -24,10 +24,10 @@ export function liveUrl(apiBase: string | undefined, loc: { protocol: string; ho
 
 export const configFromView = (v: ViewState): ShareConfig => ({
   symbol: v.symbol, chartTf: v.chartTf, timeframes: v.timeframes, displacement: v.displacement,
-  developing: v.developing, profile: v.profile, heat: v.heat, heatStyle: v.heatStyle, groups: v.groups,
+  developing: v.developing, profile: false, heat: v.heat, heatStyle: v.heatStyle, groups: v.groups,
 });
 
 export const viewFromConfig = (c: ShareConfig): Partial<ViewState> => ({
   view: 'chart', asOf: null, symbol: c.symbol, chartTf: c.chartTf, timeframes: c.timeframes, displacement: c.displacement,
-  developing: c.developing, profile: c.profile, heat: c.heat, heatStyle: c.heatStyle, groups: c.groups,
+  developing: c.developing, heat: c.heat, heatStyle: c.heatStyle, groups: c.groups,
 });

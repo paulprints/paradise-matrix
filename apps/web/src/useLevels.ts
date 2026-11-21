@@ -17,7 +17,7 @@ export function useLevels(view: ViewState, enabled: boolean) {
   const [tick, setTick] = useState(0);
   const ctrl = useRef<AbortController | null>(null);
 
-  const key = JSON.stringify([view.symbol, view.timeframes, view.displacement, view.asOf, view.developing, view.profile]);
+  const key = JSON.stringify([view.symbol, view.timeframes, view.displacement, view.asOf, view.developing]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -28,7 +28,7 @@ export function useLevels(view: ViewState, enabled: boolean) {
       try {
         const res = await api.levels({
           symbol: view.symbol, timeframes: view.timeframes, displacement: view.displacement,
-          asOf: view.asOf, developing: view.developing, profile: view.profile,
+          asOf: view.asOf, developing: view.developing,
         }, c.signal);
         setData(res);
         setError(null);

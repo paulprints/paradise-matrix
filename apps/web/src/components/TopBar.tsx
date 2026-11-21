@@ -3,6 +3,8 @@ import { TIMEFRAMES, type BarRef, type LevelGroup, type Timeframe, type User } f
 import type { ViewState } from '../lib/view.ts';
 import { TPO_BLOCKS } from '@paradise/contract';
 import type { TpoSettings } from '../lib/tpo.ts';
+import { CANDLE_PARTS, candleColors, type CandleColors } from '../lib/candles.ts';
+import { readPalette } from '../chart/theme.ts';
 
 interface Props {
   view: ViewState;
@@ -19,6 +21,8 @@ interface Props {
   /** Extra controls before the account menu (the Share menu). */
   share?: ReactNode;
   tpo: TpoSettings;
+  candles: CandleColors;
+  setCandles: (c: CandleColors) => void;
   setTpo: (patch: Partial<TpoSettings>) => void;
 }
 
@@ -50,7 +54,7 @@ export function Popover({ label, children, wide, onOpen, className }: { label: R
   );
 }
 
-export function TopBar({ view, setView, anchors, user, theme, onTheme, onAdmin, onSignOut, loading, symbolLocked, share, tpo, setTpo }: Props) {
+export function TopBar({ view, setView, anchors, user, theme, onTheme, onAdmin, onSignOut, loading, symbolLocked, share, tpo, setTpo, candles, setCandles }: Props) {
   const [symbol, setSymbol] = useState(view.symbol);
   useEffect(() => setSymbol(view.symbol), [view.symbol]);
 
@@ -115,7 +119,6 @@ export function TopBar({ view, setView, anchors, user, theme, onTheme, onAdmin, 
             {GROUP_LABELS[g]}
           </label>
         ))}
-        <label className="toggle"><input type="checkbox" checked={view.profile} onChange={(e) => setView({ profile: e.target.checked })} />Market Profile (D/W/M)</label>
         <label className="toggle"><input type="checkbox" checked={view.developing} onChange={(e) => setView({ developing: e.target.checked })} disabled={!!view.asOf} />Developing levels (live only)</label>
         <h4>Heat</h4>
         <div className="seg" role="group" aria-label="Heat">
@@ -123,28 +126,14 @@ export function TopBar({ view, setView, anchors, user, theme, onTheme, onAdmin, 
           <button aria-pressed={view.heat && view.heatStyle === 'matrix'} onClick={() => setView({ heat: true, heatStyle: 'matrix' })}>Matrix</button>
           <button aria-pressed={view.heat && view.heatStyle === 'halftone'} onClick={() => setView({ heat: true, heatStyle: 'halftone' })}>Halftone</button>
         </div>
-        <p className="note">Matrix uses the original colour scale, purple (little overlap) to yellow (heaviest). Halftone prints the same values as ink dots.</p>
         <h4>Displacement</h4>
         <div className="seg" role="group" aria-label="Displacement">
           <button aria-pressed={view.displacement === 1} onClick={() => setView({ displacement: 1 })}>+1 forward</button>
           <button aria-pressed={view.displacement === 0} onClick={() => setView({ displacement: 0 })}>0 same bar</button>
         </div>
-        <p className="note"><strong>+1 forward (normal):</strong> levels from the bar that just closed, drawn on the next bar, so they’re set before it trades.</p>
-        <p className="note"><strong>0 same bar:</strong> each bar’s levels drawn on that bar. They use its own high, low and close, so they keep moving until it closes. Use it to match charts set to 0.</p>
+        {view.view === 'chart' && <CandleColorsPicker key={theme} candles={candles} setCandles={setCandles} />}
       </Popover>
       {view.view === 'chart' && <TpoMenu on={view.tpo} setOn={(on) => setView({ tpo: on })} s={tpo} set={setTpo} />}
-      <Popover label="Help" wide>
-        <p><strong>Chart.</strong> Candles over the heat. Every level is drawn across exactly the bars it applied to, so when a 15m bar closes a new 15m level starts and the old one stays where it was. Thicker lines are higher timeframes. Scroll left for more history.</p>
-        <p><strong>Drawing.</strong> Pick a tool on the left, then click (or drag) on the chart. Select a drawing to move it, recolour it or delete it. Drawings are saved to your account for each symbol.</p>
-        <p><strong>Ladder.</strong> Each rule is one level, labelled with its timeframe and price. Gold is the last price.</p>
-        <p><strong>Confirmed vs developing.</strong> Confirmed levels come from the last completed bar and don’t move during the session. Developing levels recalculate from the bar still forming.</p>
-        <p><strong>Heat.</strong> Ink density shows how many levels overlap, weighted by timeframe (M 3, W 2, D 1). The scale is fixed by the frames you show (three overlapping levels of the heaviest frame fill it), so a quiet market looks quiet. Point at a band to see exactly which levels build it.</p>
-        <p><strong>TPO.</strong> Market Profile letters for each day, week or month, drawn in that session’s own time span. Each letter is one block of time (A is the first); cells are coloured early to late. The thick line is the POC (most time traded), dashed lines the value area (70% of the time). The bar on the left edge is the initial balance. Red-tinted cells are single prints; a gold bar marks a poor high or low (two or more letters flat at the extreme). Naked POC lines run on until price trades back to them. Optional: developing POC/value-area trails, the previous session’s levels (pPOC, pVAH, pVAL, pHi, pLo), IB lines with extensions, opening and closing range, peaks and valleys (rows busier or quieter than their neighbours), and a hover card with the profile’s figures. Volume per row is estimated from bar volume.</p>
-        <p><strong>Timeframes.</strong> Pick one, or stack several to see higher-timeframe levels together.</p>
-        <p><strong>Look back.</strong> Step to an earlier completed bar to see the levels as they stood at that close. Nothing after that moment is used.</p>
-        <p><strong>Share.</strong> <em>Share</em> makes a shared chart with one link. Everyone who opens it shows up under <em>People</em>, where you choose who can view or edit (or make newcomers ask first). Everyone sees each other’s cursors; <em>Present</em> makes everyone follow your view.</p>
-        <p><strong>Details panel.</strong> Close it with × (or press <kbd>I</kbd>) for a wider chart; the <em>Details</em> tab on the right brings it back.</p>
-      </Popover>
       <Popover label={user.username}>
         <p className="note">Signed in as {user.username}{user.isAdmin ? ' (admin)' : ''}.</p>
         <button className="btn" onClick={onTheme}>{theme === 'plate' ? 'Use light theme' : 'Use dark theme'}</button>
@@ -242,5 +231,26 @@ function TpoMenu({ on, setOn, s, set }: { on: boolean; setOn: (on: boolean) => v
       {check('hover', 'Show hover inspector')}
       {s.hover && check('hoverStats', 'Profile statistics on hover')}
     </Popover>
+  );
+}
+
+/** Body, border and wick colours for up and down candles; unset parts follow the theme. */
+function CandleColorsPicker({ candles, setCandles }: { candles: CandleColors; setCandles: (c: CandleColors) => void }) {
+  const shown = candleColors(readPalette(), candles);
+  return (
+    <>
+      <h4>Candles</h4>
+      <div className="candle-grid">
+        <span /><span className="muted">Up</span><span className="muted">Down</span>
+        {CANDLE_PARTS.map(([name, up, down]) => (
+          <div className="candle-row" key={name}>
+            <span>{name}</span>
+            <input type="color" value={shown[up]} aria-label={`${name}, up candles`} onChange={(e) => setCandles({ ...candles, [up]: e.target.value })} />
+            <input type="color" value={shown[down]} aria-label={`${name}, down candles`} onChange={(e) => setCandles({ ...candles, [down]: e.target.value })} />
+          </div>
+        ))}
+      </div>
+      {Object.keys(candles).length > 0 && <button className="btn quiet" onClick={() => setCandles({})}>Reset to theme</button>}
+    </>
   );
 }

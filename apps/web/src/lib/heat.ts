@@ -46,11 +46,11 @@ export const REFERENCE_COUNT = 3;
 export const KERNEL_ATR_FRACTION = 0.3;
 
 export type Zone = 'terminal' | 'friction' | 'transit' | 'void';
-export const ZONES: Record<Zone, { label: string; min: number; meaning: string }> = {
-  terminal: { label: 'Terminal', min: 0.85, meaning: 'Heaviest confluence: several weighted levels overlap here.' },
-  friction: { label: 'Friction', min: 0.65, meaning: 'Strong overlap of levels.' },
-  transit: { label: 'Transit', min: 0.45, meaning: 'Some overlap.' },
-  void: { label: 'Void', min: 0, meaning: 'Little confluence: levels here stand mostly alone.' },
+export const ZONES: Record<Zone, { label: string; min: number }> = {
+  terminal: { label: 'Terminal', min: 0.85 },
+  friction: { label: 'Friction', min: 0.65 },
+  transit: { label: 'Transit', min: 0.45 },
+  void: { label: 'Void', min: 0 },
 };
 export const zoneOf = (intensity: number): Zone =>
   intensity >= ZONES.terminal.min ? 'terminal' : intensity >= ZONES.friction.min ? 'friction' : intensity >= ZONES.transit.min ? 'transit' : 'void';

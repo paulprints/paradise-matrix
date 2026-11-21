@@ -1,9 +1,9 @@
 import type { LinkAccess } from '@paradise/contract';
 
-export const LINK_ACCESS_TEXT: Record<LinkAccess, { label: string; note: string }> = {
-  viewer: { label: 'Can view', note: 'People who open the link watch live. You choose who can edit.' },
-  editor: { label: 'Can edit', note: 'People who open the link can draw right away. You can switch anyone to view-only.' },
-  approval: { label: 'Must ask to join', note: 'People who open the link wait until you let them in.' },
+export const LINK_ACCESS_TEXT: Record<LinkAccess, { label: string }> = {
+  viewer: { label: 'Can view' },
+  editor: { label: 'Can edit' },
+  approval: { label: 'Must ask to join' },
 };
 
 /** "Anyone who opens the link: …" */
@@ -16,7 +16,6 @@ export function LinkAccessPicker({ value, onChange, disabled }: { value: LinkAcc
           {(Object.keys(LINK_ACCESS_TEXT) as LinkAccess[]).map((k) => <option key={k} value={k}>{LINK_ACCESS_TEXT[k].label}</option>)}
         </select>
       </label>
-      <p className="note">{LINK_ACCESS_TEXT[value].note}</p>
     </div>
   );
 }

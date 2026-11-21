@@ -112,6 +112,10 @@ describe('skipped periods', () => {
     expect(r.gaps).toEqual([3]);
     expect(r.warnings.join(' ')).toMatch(/D bar missing between 2026-09-08 and 2026-09-10/);
   });
+  it('says nothing outside the years whose holidays the calendar knows (Thanksgiving 2021)', () => {
+    const r = normalizeBars([row('2021-11-24T14:30:00Z'), row('2021-11-26T14:30:00Z')], 'D', XNYS, at('2021-11-27T00:00:00Z'));
+    expect(r.gaps).toEqual([]);
+  });
   it('withholds a level while its five source bars or its display bar span the gap', () => {
     const gaps = [10]; // bars[10] does not follow bars[9]
     expect(crossesGap(gaps, 8, 1)).toBe(false);  // reads 4–8, drawn on 9

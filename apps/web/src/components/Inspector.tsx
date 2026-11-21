@@ -6,13 +6,11 @@ import { formatPrice, TF_NAMES } from '../lib/format.ts';
 export interface InspectorContext {
   instrument: Instrument;
   frames: Frame[];
-  dataSource: string;
-  engineVersion: string;
   warnings: string[];
 }
 export interface ResolvedLevel { tf: string; label: string; price: number; developing: boolean; sourceLabel: string }
 
-interface Props { data: InspectorContext; resolve: (id: string) => ResolvedLevel | undefined; row: HeatRow | null; hint?: string; title?: string; heatStyle?: HeatStyle; onClose?: () => void }
+interface Props { data: InspectorContext; resolve: (id: string) => ResolvedLevel | undefined; row: HeatRow | null; title?: string; heatStyle?: HeatStyle; onClose?: () => void }
 
 function pivotText(f: Frame): string {
   const d = f.facts.pivotDirection;
@@ -26,7 +24,7 @@ function closesText(f: Frame): string {
   return c.side === 'on' ? 'Closed on the pivot' : `${c.bars} close${c.bars === 1 ? '' : 's'} ${c.side}`;
 }
 
-export function Inspector({ data, resolve, row, hint, title = 'Read the ladder', heatStyle = 'matrix', onClose }: Props) {
+export function Inspector({ data, resolve, row, title = 'Read the ladder', heatStyle = 'matrix', onClose }: Props) {
   const tick = data.instrument.tick;
   return (
     <aside className="side" id="details-panel" aria-label="Details">
@@ -45,7 +43,6 @@ export function Inspector({ data, resolve, row, hint, title = 'Read the ladder',
             <div className="meter" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(row.intensity * 100)} aria-label="Confluence">
               <i style={{ width: `${Math.round(row.intensity * 100)}%`, ...(heatStyle === 'matrix' ? { background: viridisCss(row.intensity) } : {}) }} />
             </div>
-            <p className="note">{ZONES[row.zone].meaning}</p>
             {row.contributors.length > 0 && (
               <ul className="contrib" style={{ marginTop: 10 }}>
                 {row.contributors.slice(0, 10).map((c) => {
@@ -65,7 +62,6 @@ export function Inspector({ data, resolve, row, hint, title = 'Read the ladder',
         ) : (
           <>
             <h2>{title}</h2>
-            <p className="note">{hint ?? 'Point at the ladder (or focus it and use the arrow keys) to see which levels build each band.'}</p>
           </>
         )}
       </section>
@@ -95,22 +91,13 @@ export function Inspector({ data, resolve, row, hint, title = 'Read the ladder',
         <h2>Key</h2>
         <div><svg className="swatch" width="22" height="8"><line x1="0" x2="22" y1="4" y2="4" stroke="var(--paper)" /></svg>Confirmed level (completed bar)</div>
         <div><svg className="swatch" width="22" height="8"><line x1="0" x2="22" y1="4" y2="4" stroke="var(--sage)" strokeDasharray="3 3" /></svg>Developing level (forming bar, provisional)</div>
-        <div><svg className="swatch" width="22" height="8"><line x1="0" x2="22" y1="4" y2="4" stroke="var(--ink)" strokeDasharray="1 3" strokeWidth="2" /></svg>Market Profile (value area, POC)</div>
         {heatStyle === 'matrix'
           ? <div><span className="swatch grad" style={{ background: VIRIDIS_GRADIENT }} />Heat: purple = little overlap, yellow = heaviest</div>
           : <div><svg className="swatch" width="22" height="8">{[3, 9, 15, 21].map((x, i) => <circle key={x} cx={x} cy="4" r={0.8 + i * 0.8} fill="var(--ink)" />)}</svg>Heat: denser ink = more levels overlap</div>}
         <div><svg className="swatch" width="22" height="8"><line x1="0" x2="22" y1="4" y2="4" stroke="var(--seal)" strokeWidth="2" /></svg>Last price</div>
-        <p className="note">Levels describe where price may react. They aren’t entry signals, and heat isn’t a reversal forecast.</p>
       </section>
 
-      <section className="legend">
-        <h2>Source</h2>
-        <p className="note">
-          {data.instrument.root}, {data.instrument.session}. Prices {data.instrument.adjustment === 'split' ? 'split-adjusted, not dividend-adjusted' : 'unadjusted'}.
-          Data: {data.dataSource}. Engine {data.engineVersion}.
-        </p>
-        {data.warnings.map((w) => <p className="warn" key={w}>{w}</p>)}
-      </section>
+      {data.warnings.length > 0 && <section>{data.warnings.map((w) => <p className="warn" key={w}>{w}</p>)}</section>}
     </aside>
   );
 }

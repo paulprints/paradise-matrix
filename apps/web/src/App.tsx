@@ -21,6 +21,7 @@ import { useChart } from './useChart.ts';
 import { useLevels } from './useLevels.ts';
 import { useTpo } from './useTpo.ts';
 import { loadTpo, saveTpo, type TpoSettings } from './lib/tpo.ts';
+import { loadCandles, saveCandles, type CandleColors } from './lib/candles.ts';
 
 type Theme = 'plate' | 'paper';
 const readTheme = (): Theme => { try { return localStorage.getItem('pp_theme') === 'paper' ? 'paper' : 'plate'; } catch { return 'plate'; } };
@@ -39,6 +40,8 @@ export function App() {
   const [handles, setHandles] = useState<ChartHandles | null>(null);
   const [details, setDetails] = useState(readDetails);
   const [tpoSettings, setTpoSettings] = useState<TpoSettings>(loadTpo);
+  const [candles, setCandlesState] = useState<CandleColors>(loadCandles);
+  const setCandles = useCallback((c: CandleColors) => { saveCandles(c); setCandlesState(c); }, []);
   const setTpo = useCallback((patch: Partial<TpoSettings>) => setTpoSettings((t) => { const next = { ...t, ...patch }; saveTpo(next); return next; }), []);
   // A shared chart lives at /c/<id>; its settings come from the share, not the address bar.
   const route = useMemo(() => parseShareRoute(location.pathname), []);
@@ -91,8 +94,8 @@ export function App() {
     const d = ladder.data;
     if (!d) return [];
     return d.levels.filter((l) => l.state === 'active' && l.price !== null && view.groups.includes(l.group)
-      && (l.group !== 'profile' || view.profile) && (l.basis === 'confirmed' || view.developing));
-  }, [ladder.data, view.groups, view.profile, view.developing]);
+      && (l.basis === 'confirmed' || view.developing));
+  }, [ladder.data, view.groups, view.developing]);
 
   const resolveLadder = useCallback((id: string): ResolvedLevel | undefined => {
     const l = ladderLevels.find((x) => x.id === id);
@@ -160,7 +163,7 @@ export function App() {
           theme={theme} onTheme={() => setTheme(theme === 'plate' ? 'paper' : 'plate')}
           onAdmin={() => setPage('members')} onSignOut={() => { api.logout(); setUser(null); }}
           symbolLocked={!!route}
-          tpo={tpoSettings} setTpo={setTpo}
+          tpo={tpoSettings} setTpo={setTpo} candles={candles} setCandles={setCandles}
           share={route ? undefined : <ShareMenu view={view} drawings={view.view === 'chart' ? draw.drawings : []} />}
         />
         {route && <ShareBar share={share} view={view} onExit={exitShare} />}
@@ -179,7 +182,7 @@ export function App() {
               scope={route ? 'on this shared chart, for everyone' : `on ${view.symbol}`}
             />}
             <div className="chart-wrap">
-              <ChartView state={chart.state} groups={view.groups} heat={view.heat} heatStyle={view.heatStyle} theme={theme} onInspect={setRow} onNeedMore={onNeedMore} onReady={setHandles} tpo={tpoProp} />
+              <ChartView state={chart.state} groups={view.groups} heat={view.heat} heatStyle={view.heatStyle} theme={theme} onInspect={setRow} onNeedMore={onNeedMore} onReady={setHandles} tpo={tpoProp} candles={candles} />
               {draw.textPrompt && (
                 <input
                   className="text-prompt" style={{ left: draw.textPrompt.x, top: draw.textPrompt.y - 14 }} autoFocus maxLength={200}
@@ -189,7 +192,7 @@ export function App() {
                 />
               )}
             </div>
-            {details ? <Inspector data={chart.state} resolve={resolveChart} heatStyle={view.heatStyle} row={row} title="Read the chart" hint="Point at the chart to see which levels build the heat at that price and time." onClose={() => setDetails(false)} /> : <button className="side-tab" onClick={() => setDetails(true)} aria-controls="details-panel" aria-expanded={false} title="Show details (I)"><span>Details</span></button>}
+            {details ? <Inspector data={chart.state} resolve={resolveChart} heatStyle={view.heatStyle} row={row} title="Read the chart" onClose={() => setDetails(false)} /> : <button className="side-tab" onClick={() => setDetails(true)} aria-controls="details-panel" aria-expanded={false} title="Show details (I)"><span>Details</span></button>}
           </div>
         ) : <div className="signin"><p className="dim">{error ? 'Nothing to show yet.' : `Loading ${view.symbol}…`}</p></div>
       ) : ladder.data ? (
