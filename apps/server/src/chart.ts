@@ -9,7 +9,7 @@
  */
 import type { ChartBar, ChartRequest, ChartResponse, LevelKey, LevelSegment, Timeframe } from '@paradise/contract';
 import { levelsAt, PLOT_KEYS } from '@paradise/engine';
-import { confirmedIndexAt, displayRef, normalizeBars, type Bar } from './data/bars.ts';
+import { confirmedIndexAt, crossesGap, displayRef, normalizeBars, type Bar, type NormalizeResult } from './data/bars.ts';
 import { resolveInstrument } from './data/instruments.ts';
 import type { FetchedSet, Market } from './data/market.ts';
 import { iso } from './data/time.ts';
@@ -62,12 +62,13 @@ export async function computeChart(req: ChartRequest, deps: ChartDeps): Promise<
     ? await computeLevels({ symbol: req.symbol, timeframes: overlays, displacement: d, developing: req.developing, profile: req.profile }, { market: pinned(set), now: () => now })
     : null;
 
-  const norm = new Map<Timeframe, Bar[]>();
-  const bars = (tf: Timeframe) => {
-    let b = norm.get(tf);
-    if (!b) norm.set(tf, (b = normalizeBars(set.rows.get(tf) ?? [], tf, inst.cal, now).bars));
-    return b;
+  const norm = new Map<Timeframe, NormalizeResult>();
+  const normalized = (tf: Timeframe) => {
+    let n = norm.get(tf);
+    if (!n) norm.set(tf, (n = normalizeBars(set.rows.get(tf) ?? [], tf, inst.cal, now)));
+    return n;
   };
+  const bars = (tf: Timeframe): Bar[] => normalized(tf).bars;
 
   const chartBars = bars(chartTf).slice(-nBars);
   const windowStart = chartBars[0]?.t ?? now;
@@ -75,12 +76,12 @@ export async function computeChart(req: ChartRequest, deps: ChartDeps): Promise<
   const segments: LevelSegment[] = [];
 
   for (const tf of overlays) {
-    const tb = bars(tf);
+    const tb = bars(tf), gaps = normalized(tf).gaps;
     const confirmed = confirmedIndexAt(tb, null);
     const last = tb.length - 1;
     const push = (i: number, basis: 'confirmed' | 'developing') => {
       const w = displayRef(tb, i + d, tf, inst.cal);
-      if (!w || w.end <= cutoff) return;
+      if (!w || w.end <= cutoff || crossesGap(gaps, i, d)) return;
       for (const l of levelsAt(tb, i, basis, d)) {
         if (l.price === null) continue;
         segments.push([KEY_INDEX.get(l.plot)!, tf, l.price, w.time, w.end, basis === 'developing' ? 1 : 0, tb[i]!.t]);

@@ -21,6 +21,18 @@ async function withServer(providers: Provider[], now: number, fn: (call: Awaited
   } finally { await s.close(); }
 }
 
+describe('a bar missing from the feed', () => {
+  it('withholds levels whose bars span it, and says why', async () => {
+    const { rows } = captureRows(DAILY, 60);
+    const gappy = [...rows.slice(0, 58), ...rows.slice(59)]; // the provider skipped one day, two bars before the newest
+    await withServer([staticProvider('fixture', { 'QQQ:D': gappy })], rows[60]!.t + 86_400, async (call, token) => {
+      const body = (await call('POST', '/api/levels', { symbol: 'QQQ', timeframes: ['D'] }, token)).body as LevelsResponse;
+      expect(body.levels).toEqual([]);
+      expect(body.frames[0]!.warnings.join(' ')).toMatch(/bar missing between/);
+    });
+  });
+});
+
 describe('Data Box parity through the API', () => {
   const cases = [
     { frame: 'daily', tf: 'D', id: DAILY, now: '2026-09-09T15:00:00Z', source: '2026-09-08', display: '2026-09-09' },

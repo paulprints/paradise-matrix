@@ -20,7 +20,14 @@ export interface Bar extends EngineBar {
   readonly ready: number;
 }
 
-export interface NormalizeResult { bars: Bar[]; dropped: number; warnings: string[] }
+/** `gaps`: D/W/M indexes i where bars[i] is not the period right after bars[i-1] (the provider skipped one). */
+export interface NormalizeResult { bars: Bar[]; dropped: number; warnings: string[]; gaps: number[] }
+
+/** Bars before the source bar that a level's formulas read (the engine's five-bar window). */
+const WINDOW_BACK = 4;
+/** True when the window a level reads (source − 4 … display) spans a skipped period, so it would be computed and drawn off by one. */
+export const crossesGap = (gaps: readonly number[], sourceIndex: number, displacement: number) =>
+  gaps.some((g) => g > sourceIndex - WINDOW_BACK && g <= sourceIndex + displacement);
 
 /** Daily/weekly/monthly feeds settle late: wait 15 minutes after the close. */
 export const COMPLETION_GRACE_S = 15 * 60;
@@ -81,7 +88,15 @@ export function normalizeBars(raw: readonly RawBar[], tf: Timeframe, cal: Exchan
     else if (seen) { bars[i] = { ...bars[i]!, complete: true }; repaired = true; }
   }
   if (repaired) warnings.push('completeness ordering repaired');
-  return { bars, dropped, warnings };
+  const gaps: number[] = [];
+  if (tf === 'D' || tf === 'W' || tf === 'M') {
+    for (let i = 1; i < bars.length; i++) {
+      if (nextPeriodKey(cal, tf, bars[i - 1]!.key) === bars[i]!.key) continue;
+      gaps.push(i);
+      warnings.push(`${tf} bar missing between ${bars[i - 1]!.label} and ${bars[i]!.label}; levels whose bars span it are withheld`);
+    }
+  }
+  return { bars, dropped, warnings, gaps };
 }
 
 /** Index of the last bar complete at `asOf` (unix s). −1 when none. */

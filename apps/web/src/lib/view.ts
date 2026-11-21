@@ -20,6 +20,8 @@ export interface ViewState {
   heatStyle: HeatStyle;
   /** Visible span as a multiple of the finest frame's ATR. */
   zoom: number;
+  /** TPO profiles on the chart (their settings are kept per browser). */
+  tpo: boolean;
 }
 
 export const DEFAULT_VIEW: ViewState = {
@@ -35,6 +37,7 @@ export const DEFAULT_VIEW: ViewState = {
   heat: true,
   heatStyle: 'matrix',
   zoom: 8,
+  tpo: false,
 };
 
 const GROUPS: LevelGroup[] = ['structure', 'range', 'termination', 'profile'];
@@ -61,6 +64,7 @@ export function parseView(search: string): ViewState {
   if (q.get('hs') === 'halftone') v.heatStyle = 'halftone';
   const z = Number(q.get('z'));
   if (ZOOM_STEPS.includes(z)) v.zoom = z;
+  v.tpo = q.get('tpo') === '1';
   return v;
 }
 
@@ -78,5 +82,6 @@ export function serializeView(v: ViewState): string {
   if (!v.heat) q.set('heat', '0');
   if (v.heatStyle !== DEFAULT_VIEW.heatStyle) q.set('hs', v.heatStyle);
   if (v.zoom !== DEFAULT_VIEW.zoom) q.set('z', String(v.zoom));
+  if (v.tpo) q.set('tpo', '1');
   return `?${q.toString()}`;
 }

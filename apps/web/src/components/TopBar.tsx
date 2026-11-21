@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { TIMEFRAMES, type BarRef, type LevelGroup, type Timeframe, type User } from '@paradise/contract';
 import type { ViewState } from '../lib/view.ts';
+import { TPO_BLOCKS } from '@paradise/contract';
+import type { TpoSettings } from '../lib/tpo.ts';
 
 interface Props {
   view: ViewState;
@@ -16,6 +18,8 @@ interface Props {
   symbolLocked?: boolean;
   /** Extra controls before the account menu (the Share menu). */
   share?: ReactNode;
+  tpo: TpoSettings;
+  setTpo: (patch: Partial<TpoSettings>) => void;
 }
 
 const GROUP_LABELS: Record<LevelGroup, string> = {
@@ -46,7 +50,7 @@ export function Popover({ label, children, wide, onOpen, className }: { label: R
   );
 }
 
-export function TopBar({ view, setView, anchors, user, theme, onTheme, onAdmin, onSignOut, loading, symbolLocked, share }: Props) {
+export function TopBar({ view, setView, anchors, user, theme, onTheme, onAdmin, onSignOut, loading, symbolLocked, share, tpo, setTpo }: Props) {
   const [symbol, setSymbol] = useState(view.symbol);
   useEffect(() => setSymbol(view.symbol), [view.symbol]);
 
@@ -128,12 +132,14 @@ export function TopBar({ view, setView, anchors, user, theme, onTheme, onAdmin, 
         <p className="note"><strong>+1 forward (normal):</strong> levels from the bar that just closed, drawn on the next bar, so they’re set before it trades.</p>
         <p className="note"><strong>0 same bar:</strong> each bar’s levels drawn on that bar. They use its own high, low and close, so they keep moving until it closes. Use it to match charts set to 0.</p>
       </Popover>
+      {view.view === 'chart' && <TpoMenu on={view.tpo} setOn={(on) => setView({ tpo: on })} s={tpo} set={setTpo} />}
       <Popover label="Help" wide>
         <p><strong>Chart.</strong> Candles over the heat. Every level is drawn across exactly the bars it applied to, so when a 15m bar closes a new 15m level starts and the old one stays where it was. Thicker lines are higher timeframes. Scroll left for more history.</p>
         <p><strong>Drawing.</strong> Pick a tool on the left, then click (or drag) on the chart. Select a drawing to move it, recolour it or delete it. Drawings are saved to your account for each symbol.</p>
         <p><strong>Ladder.</strong> Each rule is one level, labelled with its timeframe and price. Gold is the last price.</p>
         <p><strong>Confirmed vs developing.</strong> Confirmed levels come from the last completed bar and don’t move during the session. Developing levels recalculate from the bar still forming.</p>
         <p><strong>Heat.</strong> Ink density shows how many levels overlap, weighted by timeframe (M 3, W 2, D 1). The scale is fixed by the frames you show (three overlapping levels of the heaviest frame fill it), so a quiet market looks quiet. Point at a band to see exactly which levels build it.</p>
+        <p><strong>TPO.</strong> Market Profile letters for each day, week or month, drawn in that session’s own time span. Each letter is one block of time (A is the first); cells are coloured early to late. The thick line is the POC (most time traded), dashed lines the value area (70% of the time). The bar on the left edge is the initial balance. Red-tinted cells are single prints; a gold bar marks a poor high or low (two or more letters flat at the extreme). Naked POC lines run on until price trades back to them. Optional: developing POC/value-area trails, the previous session’s levels (pPOC, pVAH, pVAL, pHi, pLo), IB lines with extensions, opening and closing range, peaks and valleys (rows busier or quieter than their neighbours), and a hover card with the profile’s figures. Volume per row is estimated from bar volume.</p>
         <p><strong>Timeframes.</strong> Pick one, or stack several to see higher-timeframe levels together.</p>
         <p><strong>Look back.</strong> Step to an earlier completed bar to see the levels as they stood at that close. Nothing after that moment is used.</p>
         <p><strong>Share.</strong> <em>Share</em> makes a shared chart with one link. Everyone who opens it shows up under <em>People</em>, where you choose who can view or edit (or make newcomers ask first). Everyone sees each other’s cursors; <em>Present</em> makes everyone follow your view.</p>
@@ -146,5 +152,95 @@ export function TopBar({ view, setView, anchors, user, theme, onTheme, onAdmin, 
         <button className="btn" onClick={onSignOut}>Sign out</button>
       </Popover>
     </header>
+  );
+}
+
+const IB_MINUTES = Array.from({ length: 16 }, (_, i) => (i + 1) * 15);
+
+function TpoMenu({ on, setOn, s, set }: { on: boolean; setOn: (on: boolean) => void; s: TpoSettings; set: (patch: Partial<TpoSettings>) => void }) {
+  const seg = <T extends string>(label: string, value: T, options: Array<[T, string]>, pick: (v: T) => void) => (
+    <div className="seg" role="group" aria-label={label}>
+      {options.map(([v, text]) => <button key={v} aria-pressed={value === v} onClick={() => pick(v)}>{text}</button>)}
+    </div>
+  );
+  const num = (label: string, value: number, min: number, max: number, pick: (v: number) => void) => (
+    <label className="field compact">
+      <span className="muted">{label}</span>
+      <input type="number" min={min} max={max} step={1} value={value} aria-label={label} style={{ width: 60 }}
+        onChange={(e) => { const v = Math.round(Number(e.target.value)); if (v >= min && v <= max) pick(v); }} />
+    </label>
+  );
+  const check = (key: keyof TpoSettings, text: string) => (
+    <label className="toggle"><input type="checkbox" checked={!!s[key]} onChange={(e) => set({ [key]: e.target.checked })} />{text}</label>
+  );
+  return (
+    <Popover label={on ? 'TPO ●' : 'TPO'}>
+      <label className="toggle"><input type="checkbox" checked={on} onChange={(e) => setOn(e.target.checked)} />Show TPO profiles</label>
+      <h4>Profile</h4>
+      {seg('Session', s.session, [['D', 'Daily'], ['W', 'Weekly'], ['M', 'Monthly']], (session) => set({ session }))}
+      <p className="note">Each letter covers</p>
+      {seg('Block size', s.block, TPO_BLOCKS.map((b) => [b, b] as [typeof b, string]), (block) => set({ block }))}
+      <label className="field compact">
+        <span className="muted">Row height (ticks)</span>
+        <input type="number" min={1} step={1} value={s.rowTicks ?? ''} placeholder="Auto" aria-label="Row height in ticks, empty for automatic"
+          onChange={(e) => { const v = Math.floor(Number(e.target.value)); set({ rowTicks: e.target.value === '' || !(v >= 1) ? null : v }); }} style={{ width: 70 }} />
+      </label>
+      <label className="field compact">
+        <span className="muted">Value area %</span>
+        <input type="number" min={50} max={95} step={5} value={s.valueArea} aria-label="Value area percent"
+          onChange={(e) => { const v = Math.round(Number(e.target.value)); if (v >= 50 && v <= 95) set({ valueArea: v }); }} style={{ width: 60 }} />
+      </label>
+      {seg('Value area method', s.vaMethod, [['two', 'Two rows'], ['one', 'One row']], (vaMethod) => set({ vaMethod }))}
+      <label className="field compact">
+        <span className="muted">Initial balance</span>
+        <select value={s.ibMinutes} onChange={(e) => set({ ibMinutes: Number(e.target.value) })} aria-label="Initial balance minutes">
+          {IB_MINUTES.map((m) => <option key={m} value={m}>{m} min</option>)}
+        </select>
+      </label>
+      <h4>Cells</h4>
+      {seg('Block display', s.display, [['blocks+letters', 'Blocks + letters'], ['letters', 'Letters'], ['blocks', 'Blocks']], (display) => set({ display }))}
+      {seg('Outside value area', s.outsideVaFlat ? 'flat' : 'fade', [['flat', 'Grey outside VA'], ['fade', 'Faded outside VA']], (v) => set({ outsideVaFlat: v === 'flat' }))}
+      <h4>Show</h4>
+      {check('poc', 'Point of control (POC)')}
+      {check('va', 'Value area high / low')}
+      {check('fillVa', 'Fill value area')}
+      {check('ibRange', 'Initial balance range')}
+      {check('singles', 'Single prints')}
+      {check('poorExtremes', 'Poor highs / lows')}
+      {check('nakedPoc', 'Naked POC')}
+      {check('nakedVa', 'Naked VAH / VAL')}
+      {check('labels', 'Labels')}
+      {check('hideCandles', 'Hide candles')}
+      {check('midpoint', 'Midpoint')}
+      <p className="note">Lines end at</p>
+      {seg('Extend lines', s.extend, [['profile', 'Profile'], ['period', 'Period end'], ['right', 'Right edge']], (extend) => set({ extend }))}
+      {num('Max naked levels (0 = all)', s.maxNaked, 0, 500, (maxNaked) => set({ maxNaked }))}
+      {num('Profile spacing (px)', s.spacing, 0, 40, (spacing) => set({ spacing }))}
+      <h4>Developing and prior</h4>
+      {check('devPoc', 'Developing POC')}
+      {check('devVa', 'Developing value area')}
+      {check('devAll', 'Developing on every profile')}
+      {check('prior', 'Prior-session levels (pPOC, pVAH, pVAL, pHi, pLo)')}
+      {check('priorEvery', 'Prior levels on every profile')}
+      <h4>Initial balance</h4>
+      {check('ibLines', 'IB high / low lines')}
+      <p className="note">Extensions, % of the IB range (0 = off)</p>
+      <div className="row">{s.ibExt.map((v, i) => <input key={i} type="number" min={0} max={1000} step={25} value={v} aria-label={`IB extension ${i + 1} percent`} style={{ width: 58 }}
+        onChange={(e) => { const x = Math.round(Number(e.target.value) / 25) * 25; if (x >= 0 && x <= 1000) { const ibExt = [...s.ibExt] as TpoSettings['ibExt']; ibExt[i] = x; set({ ibExt }); } }} />)}</div>
+      {num('Opening range (first N letters, 0 = off)', s.openingRange, 0, 52, (openingRange) => set({ openingRange }))}
+      {num('Closing range (last N letters, 0 = off)', s.closingRange, 0, 52, (closingRange) => set({ closingRange }))}
+      <h4>Peaks and valleys</h4>
+      {seg('Peaks and valleys', s.peaksValleys, [['off', 'Off'], ['both', 'Both'], ['peaks', 'Peaks'], ['valleys', 'Valleys']], (peaksValleys) => set({ peaksValleys }))}
+      {s.peaksValleys !== 'off' && num('Sensitivity (rows each side)', s.pvSensitivity, 1, 20, (pvSensitivity) => set({ pvSensitivity }))}
+      <h4>Colour</h4>
+      {check('sessionColors', 'Colour each session differently')}
+      {check('highlightEnds', 'Highlight first and last letter')}
+      {check('customColors', 'Custom early → late colours')}
+      {s.customColors && <div className="row">{s.colors.map((c, i) => <input key={i} type="color" value={c} aria-label={`Colour ${i + 1} (${['earliest', 'second', 'third', 'latest'][i]})`}
+        onChange={(e) => { const colors = [...s.colors] as TpoSettings['colors']; colors[i] = e.target.value; set({ colors }); }} />)}</div>}
+      <h4>Hover</h4>
+      {check('hover', 'Show hover inspector')}
+      {s.hover && check('hoverStats', 'Profile statistics on hover')}
+    </Popover>
   );
 }

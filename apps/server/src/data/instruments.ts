@@ -3,7 +3,7 @@
  * tick sizes, calendar and provider symbol all come from here.
  */
 import type { Instrument } from '@paradise/contract';
-import { CME_EQUITY, XNYS, type ExchangeCalendar } from './calendar.ts';
+import { CME_EQUITY, CRYPTO_UTC, XNYS, type ExchangeCalendar } from './calendar.ts';
 
 interface FutureSpec { tick: number; name: string; exchange: string; equityIndex?: boolean }
 
@@ -31,6 +31,12 @@ export const FUTURES: Record<string, FutureSpec> = {
   '6E': { tick: 0.00005, name: 'Euro FX', exchange: 'CME' },
 };
 
+/** Crypto spot pairs on Yahoo (`BTC-USD`). Tick = the price precision Yahoo quotes. */
+export const CRYPTO: Record<string, { tick: number }> = {
+  BTC: { tick: 0.01 }, ETH: { tick: 0.01 }, SOL: { tick: 0.01 },
+  XRP: { tick: 0.0001 }, DOGE: { tick: 0.00001 },
+};
+
 const MONTH_CODES = 'FGHJKMNQUVXZ';
 
 export interface ResolvedInstrument extends Instrument {
@@ -40,7 +46,7 @@ export interface ResolvedInstrument extends Instrument {
 export class InstrumentError extends Error {}
 
 /**
- * Accepts: QQQ, BRK.B, NQ, /NQ, NQ=F, NQZ26, NQZ26.CME, MNQ 12-26.
+ * Accepts: QQQ, BRK.B, NQ, /NQ, NQ=F, NQZ26, NQZ26.CME, MNQ 12-26, BTC-USD.
  * Continuous futures map to Yahoo's front month (=F); specific contracts keep their month.
  */
 export function resolveInstrument(input: string): ResolvedInstrument {
@@ -50,11 +56,21 @@ export function resolveInstrument(input: string): ResolvedInstrument {
   const fut = matchFuture(raw);
   if (fut) {
     const spec = FUTURES[fut.root]!;
-    const cal = spec.equityIndex ? CME_EQUITY : CME_EQUITY; // non-index products share the approximate Globex calendar
+    const cal = CME_EQUITY; // non-index products share the approximate Globex calendar
     return {
       symbol: fut.symbol, root: fut.root, kind: 'future', tick: spec.tick, cal,
       calendar: cal.id, calendarFidelity: cal.fidelity, timezone: cal.timezone,
       session: spec.equityIndex ? cal.session : `${cal.session}; ${spec.name} hours vary`,
+      adjustment: 'none',
+    };
+  }
+  const coin = /^([A-Z0-9]+)-USD$/.exec(raw)?.[1];
+  if (coin) {
+    // Unlisted coins are refused: the equity path would put them on NYSE hours.
+    if (!CRYPTO[coin]) throw new InstrumentError(`Crypto "${input}" is not supported yet (supported: ${Object.keys(CRYPTO).map((c) => `${c}-USD`).join(', ')})`);
+    return {
+      symbol: raw, root: raw, kind: 'crypto', tick: CRYPTO[coin].tick, cal: CRYPTO_UTC,
+      calendar: CRYPTO_UTC.id, calendarFidelity: CRYPTO_UTC.fidelity, timezone: CRYPTO_UTC.timezone, session: CRYPTO_UTC.session,
       adjustment: 'none',
     };
   }

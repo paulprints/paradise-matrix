@@ -75,6 +75,22 @@ export const CME_EQUITY: ExchangeCalendar = {
   },
 };
 
+/**
+ * Crypto spot (Yahoo `-USD`, exchange "CCC"): trades 24/7. Days are 00:00–24:00 UTC,
+ * matching Yahoo's own daily bars; weeks are ISO (Monday 00:00 UTC). No holidays.
+ */
+export const CRYPTO_UTC: ExchangeCalendar = {
+  id: 'CRYPTO-UTC',
+  fidelity: 'exact',
+  timezone: 'UTC',
+  session: 'Crypto spot 24/7, days 00:00–24:00 UTC',
+  coveredYears: [1970, 9999], // nothing tabulated, so nothing to run out of
+  isTradingDay: () => true,
+  sessionOpen: (ymd) => zonedToUnix(ymd, 0, 0, 'UTC'),
+  sessionClose: (ymd) => zonedToUnix(addDays(ymd, 1), 0, 0, 'UTC'),
+  sessionDateOf: (sec) => localYmd(sec, 'UTC'),
+};
+
 export function nextTradingDay(cal: ExchangeCalendar, ymd: string): string {
   let d = addDays(ymd, 1);
   for (let i = 0; i < 15 && !cal.isTradingDay(d); i++) d = addDays(d, 1);
@@ -91,14 +107,13 @@ export const weekKey = (ymd: string) => addDays(ymd, -((weekdayOf(ymd) + 6) % 7)
 export const monthKey = (ymd: string) => ymd.slice(0, 7);
 
 export const INTRADAY_SECONDS: Partial<Record<Timeframe, number>> = { '1m': 60, '5m': 300, '15m': 900, '30m': 1800, '1H': 3600 };
-export const isIntraday = (tf: Timeframe) => tf in INTRADAY_SECONDS;
 
 /** Trading dates belonging to a D/W/M period key. */
 function periodDays(cal: ExchangeCalendar, tf: 'D' | 'W' | 'M', key: string): string[] {
   if (tf === 'D') return cal.isTradingDay(key) ? [key] : [];
   const days: string[] = [];
   if (tf === 'W') {
-    for (let i = 0; i < 5; i++) { const d = addDays(key, i); if (cal.isTradingDay(d)) days.push(d); }
+    for (let i = 0; i < 7; i++) { const d = addDays(key, i); if (cal.isTradingDay(d)) days.push(d); }
   } else {
     for (let d = `${key}-01`; d.startsWith(key); d = addDays(d, 1)) if (cal.isTradingDay(d)) days.push(d);
   }

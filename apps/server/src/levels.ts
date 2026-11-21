@@ -5,7 +5,7 @@
  */
 import type { Frame, Level, LevelsRequest, LevelsResponse, Timeframe } from '@paradise/contract';
 import { buildFrame, computeProfile, defaultRowSize, ENGINE_VERSION, PROFILE_VERSION, type EngineLevel } from '@paradise/engine';
-import { COMPLETION_GRACE_S, confirmedIndexAt, displayRef, normalizeBars, type Bar } from './data/bars.ts';
+import { COMPLETION_GRACE_S, confirmedIndexAt, crossesGap, displayRef, normalizeBars, type Bar } from './data/bars.ts';
 import { calendarCovers, lastClosedSession, nextPeriodKey, periodBounds, periodKeyOf, periodLabel, type ExchangeCalendar } from './data/calendar.ts';
 import { resolveInstrument, type ResolvedInstrument } from './data/instruments.ts';
 import type { Market } from './data/market.ts';
@@ -40,11 +40,13 @@ export async function computeLevels(req: LevelsRequest, deps: LevelsDeps): Promi
 
   const barsByTf = new Map<Timeframe, Bar[]>();
   const normWarnings = new Map<Timeframe, string[]>();
+  const gapsByTf = new Map<Timeframe, number[]>();
   for (const tf of fetchTfs) {
     const n = normalizeBars(set.rows.get(tf) ?? [], tf, inst.cal, now);
     // As-of: bars that had not started yet are unknowable at that instant.
     barsByTf.set(tf, asOf === null ? n.bars : n.bars.filter((b) => b.t < asOf));
     normWarnings.set(tf, n.warnings);
+    gapsByTf.set(tf, n.gaps); // as-of only trims the tail, so indexes still match
   }
 
   const finest = tfs[tfs.length - 1]!;
@@ -86,7 +88,8 @@ export async function computeLevels(req: LevelsRequest, deps: LevelsDeps): Promi
       barCount: bars.length,
       warnings: [...staleness, ...(normWarnings.get(tf) ?? []), ...f.warnings],
     });
-    for (const l of f.levels) levels.push(toPublic(l, tf, bars, inst));
+    const gaps = gapsByTf.get(tf)!;
+    for (const l of f.levels) if (!crossesGap(gaps, l.sourceIndex, l.displacement)) levels.push(toPublic(l, tf, bars, inst));
 
     if (profileTfs.includes(tf as 'D')) {
       const p = profileLevels(tf as 'D' | 'W' | 'M', barsByTf.get('30m')!, inst, asOf ?? now, wantDeveloping, lastPrice?.price ?? null);

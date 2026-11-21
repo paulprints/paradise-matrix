@@ -92,7 +92,7 @@ export interface Instrument {
   symbol: string;
   /** Root / display symbol, e.g. QQQ, NQ */
   root: string;
-  kind: 'equity' | 'future';
+  kind: 'equity' | 'future' | 'crypto';
   tick: number;
   calendar: string;
   /** exact = full holiday calendar; approximate = weekday session rules only (see docs/CONTRACT.md). */
@@ -205,6 +205,80 @@ export interface ChartResponse {
   lastPrice: { price: number; time: string } | null;
   /** Echo of the request's since (null for a full load). */
   since: number | null;
+  warnings: string[];
+}
+
+// ---------------------------------------------------------------------------
+// TPO (Market Profile) chart
+// ---------------------------------------------------------------------------
+
+export const TPO_BLOCKS = ['5m', '30m', '1H', '4H'] as const;
+export type TpoBlockSize = (typeof TPO_BLOCKS)[number];
+
+export interface TpoRequest {
+  symbol: string;
+  /** One profile per day, week or month. */
+  session: 'D' | 'W' | 'M';
+  /** Time each letter covers. */
+  block: TpoBlockSize;
+  /** Row height in ticks; omitted = automatic (same as the Market Profile levels). */
+  rowTicks?: number;
+  /** Value area percent, 50–95 (default 70). */
+  valueArea?: number;
+  vaMethod?: 'two' | 'one';
+  /** Initial balance length, 15–240 in steps of 15 (default 60). */
+  ibMinutes?: number;
+  /** Minimum single-print rows for a buying/selling tail (default 2, 0 = never). */
+  tailMin?: number;
+  /** Most recent N profiles (default 20, max 120). */
+  profiles?: number;
+}
+
+/** A level's naked state: unix seconds when price first traded back to it after its profile, or null (still naked). */
+export type Touched = number | null;
+
+export interface TpoProfile {
+  key: string;
+  label: string;
+  /** Session bounds, unix seconds. */
+  start: number;
+  end: number;
+  complete: boolean;
+  /** Start time of each letter period (index = letter). */
+  periods: number[];
+  /** Price of rows[0]; row i is at base + i × rowSize. */
+  base: number;
+  /** Letter indexes per row, bottom → top. */
+  rows: number[][];
+  /** Estimated volume per row (block volume spread evenly over its rows). */
+  volume: number[];
+  poc: number; vah: number; val: number;
+  vpoc: number; vvah: number; vval: number;
+  high: number; low: number; mid: number; open: number; close: number;
+  ibHigh: number; ibLow: number;
+  tpos: number; above: number; below: number;
+  poorHigh: boolean; poorLow: boolean;
+  singles: Array<[low: number, high: number]>;
+  buyTail: number; sellTail: number;
+  /** [POC, VAH, VAL] after each letter period. */
+  developing: Array<[number, number, number]>;
+  touched: Record<'poc' | 'vah' | 'val' | 'vpoc' | 'vvah' | 'vval' | 'high' | 'low', Touched>;
+  /** Same order as singles. */
+  singlesTouched: Touched[];
+}
+
+export interface TpoResponse {
+  instrument: Instrument;
+  generatedAt: string;
+  dataSource: string;
+  engineVersion: string;
+  session: 'D' | 'W' | 'M';
+  block: TpoBlockSize;
+  rowSize: number;
+  rowTicks: number;
+  valueArea: number;
+  ibMinutes: number;
+  profiles: TpoProfile[];
   warnings: string[];
 }
 

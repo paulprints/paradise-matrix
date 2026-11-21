@@ -3,11 +3,12 @@ import express, { type NextFunction, type Request, type Response } from 'express
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import { z } from 'zod';
-import { DRAWING_COLORS, DRAWING_LIMITS, TIMEFRAMES, type ChartRequest, type DrawingsResponse, type LevelsRequest, type LoginResponse } from '@paradise/contract';
+import { DRAWING_COLORS, DRAWING_LIMITS, TIMEFRAMES, TPO_BLOCKS, type ChartRequest, type TpoRequest, type DrawingsResponse, type LevelsRequest, type LoginResponse } from '@paradise/contract';
 import type { Config } from './config.ts';
 import type { UserStore } from './auth/db.ts';
 import { requireAdmin, requireAuth, signToken, type AuthedRequest } from './auth/tokens.ts';
 import { computeChart } from './chart.ts';
+import { computeTpo, TPO_PROFILES_MAX } from './tpo.ts';
 import type { LiveHub } from './shares/live.ts';
 import { shareRoutes } from './shares/routes.ts';
 import type { SharesStore } from './shares/store.ts';
@@ -37,6 +38,17 @@ const chartSchema = z.object({
   bars: z.number().int().min(50).max(5000).optional(),
   since: z.number().int().min(0).optional(),
 });
+const tpoSchema = z.object({
+  symbol: z.string().trim().min(1).max(24),
+  session: z.enum(['D', 'W', 'M']).default('D'),
+  block: z.enum(TPO_BLOCKS).default('30m'),
+  rowTicks: z.number().int().min(1).max(100_000).optional(),
+  valueArea: z.number().int().min(50).max(95).optional(),
+  vaMethod: z.enum(['two', 'one']).optional(),
+  ibMinutes: z.number().int().min(15).max(240).multipleOf(15).optional(),
+  tailMin: z.number().int().min(0).max(50).optional(),
+  profiles: z.number().int().min(1).max(TPO_PROFILES_MAX).optional(),
+});
 const drawingsSchema = z.object({ symbol: z.string().trim().min(1).max(24), drawings: z.array(drawingSchema).max(DRAWING_LIMITS.perSymbol), baseUpdatedAt: z.string().max(40).nullable().optional() });
 const loginSchema = z.object({ username: z.string().trim().min(1).max(50), password: z.string().min(1).max(200) });
 const newUserSchema = z.object({
@@ -65,7 +77,6 @@ export function createApp({ config, store, market, shares, live = null, now }: A
 
   const auth = requireAuth(store, config.jwtSecret);
   const loginLimiter = rateLimit({ windowMs: 15 * 60_000, limit: 10, skipSuccessfulRequests: true, standardHeaders: 'draft-7', legacyHeaders: false, message: { error: 'Too many attempts — try again in 15 minutes' } });
-  const clientIp = (req: Request) => (req.headers['cf-connecting-ip'] as string | undefined) ?? req.ip ?? null;
 
   app.get('/health', (_req, res) => { res.json({ status: 'ok', providers: market.providers }); });
 
@@ -73,7 +84,8 @@ export function createApp({ config, store, market, shares, live = null, now }: A
     const body = loginSchema.safeParse(req.body);
     if (!body.success) return res.status(400).json({ error: 'Username and password are required' });
     const user = await store.verify(body.data.username, body.data.password);
-    await store.recordLogin({ username: body.data.username.toLowerCase(), userId: user?.id, ip: clientIp(req), userAgent: req.headers['user-agent'] ?? null, ok: !!user, error: user ? null : 'invalid credentials' });
+    // req.ip goes through `trust proxy`; a header the client sends could claim any IP.
+    await store.recordLogin({ username: body.data.username.toLowerCase(), userId: user?.id, ip: req.ip ?? null, userAgent: req.headers['user-agent'] ?? null, ok: !!user, error: user ? null : 'invalid credentials' });
     if (!user) return res.status(401).json({ error: 'Invalid username or password' });
     const pub = { id: user.id, username: user.username, isAdmin: user.is_admin === 1 };
     const out: LoginResponse = { token: signToken(pub, user.password_hash, config.jwtSecret, config.jwtExpiresIn), user: pub };
@@ -92,6 +104,12 @@ export function createApp({ config, store, market, shares, live = null, now }: A
     const body = chartSchema.safeParse(req.body);
     if (!body.success) return res.status(400).json({ error: 'Invalid request', details: body.error.flatten() });
     res.json(await computeChart(body.data as ChartRequest, { market, now }));
+  }));
+
+  app.post('/api/tpo', auth, wrap(async (req, res) => {
+    const body = tpoSchema.safeParse(req.body);
+    if (!body.success) return res.status(400).json({ error: 'Invalid request', details: body.error.flatten() });
+    res.json(await computeTpo(body.data as TpoRequest, { market, now }));
   }));
 
   // Drawings are stored per member and per resolved instrument (NQ and /NQ share drawings).
@@ -156,6 +174,7 @@ export function createApp({ config, store, market, shares, live = null, now }: A
   app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
     if (err instanceof RequestError || err instanceof InstrumentError) return void res.status(400).json({ error: err.message });
     if (err instanceof MarketDataError) return void res.status(503).json({ error: 'Market data unavailable', details: err.attempts });
+    if ((err as any)?.type === 'entity.too.large') return void res.status(413).json({ error: 'Too much to save at once: delete some drawings and try again' });
     if ((err as any)?.type === 'entity.parse.failed') return void res.status(400).json({ error: 'Malformed JSON' });
     console.error('[server] unhandled', err);
     res.status(500).json({ error: config.nodeEnv === 'production' ? 'Internal error' : String((err as Error)?.message ?? err) });
